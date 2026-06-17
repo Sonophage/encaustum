@@ -65,5 +65,7 @@ class MagnusTheme : public BaseTheme {
                        const char* secondaryLabel = nullptr, KeyboardKeyType keyType = KeyboardKeyType::Normal,
                        bool inactiveSelection = false) const override;
   void drawProgressBar(const GfxRenderer& renderer, Rect rect, size_t current, size_t total) const override;
+  void drawStatusBar(GfxRenderer& renderer, float bookProgress, int currentPage, int pageCount, std::string title,
+                     int paddingBottom, int textYOffset, bool isStarred) const override;
   Rect drawPopup(const GfxRenderer& renderer, const char* message) const override;
 };

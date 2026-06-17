@@ -5,10 +5,13 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <ctime>
 #include <string>
 
 #include "CrossPointSettings.h"
 #include "MagnusGlobals.h"
+#include "components/UITheme.h"
 #include "fontIds.h"
 
 // Magnus design tokens — names kept local for readability; values flow from the shared globals.
@@ -270,6 +273,99 @@ void MagnusTheme::drawProgressBar(const GfxRenderer& renderer, Rect rect, const 
   }
   const std::string pct = std::to_string(percent) + "%";
   renderer.drawCenteredText(kChromeFont, rect.y + rect.height + 12, pct.c_str());
+}
+
+// ── Reader status bar — mono footer: page (left) · chapter (centre) · percent (right) ──
+// Honors the user's status-bar toggles; renders in Courier with a hairline above the band.
+void MagnusTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
+                                const int pageCount, std::string title, const int paddingBottom,
+                                const int textYOffset, const bool isStarred) const {
+  const auto metrics = UITheme::getInstance().getMetrics();
+  int mt, mr, mb, ml;
+  renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
+  const int sw = renderer.getScreenWidth();
+  const int sh = renderer.getScreenHeight();
+  const int barH = UITheme::getInstance().getStatusBarHeight();
+  if (barH == 0) return;
+
+  const int leftEdge = ml + metrics.statusBarHorizontalMargin;
+  const int rightEdge = sw - mr - metrics.statusBarHorizontalMargin;
+  const int textY = sh - barH - mb - paddingBottom - 4 - textYOffset;
+
+  // hairline separating the body from the footer band
+  hairline(renderer, ml, textY - 5, sw - ml - mr);
+
+  // optional progress bar (Magnus dither) along the very bottom of the band
+  if (SETTINGS.statusBarProgressBar != CrossPointSettings::STATUS_BAR_PROGRESS_BAR::HIDE_PROGRESS) {
+    const int th = (SETTINGS.statusBarProgressBarThickness + 1) * 2;
+    const int by = sh - mb - th - paddingBottom;
+    size_t progress;
+    if (SETTINGS.statusBarProgressBar == CrossPointSettings::STATUS_BAR_PROGRESS_BAR::BOOK_PROGRESS)
+      progress = static_cast<size_t>(bookProgress);
+    else
+      progress = (pageCount > 0) ? static_cast<size_t>(static_cast<float>(currentPage) / pageCount * 100) : 0;
+    const int w = static_cast<int>((sw - ml - mr) * progress / 100);
+    if (w > 0) renderer.fillRectDither(ml, by, w, th, Color::DarkGray);
+  }
+
+  int leftX = leftEdge;
+
+  // clock + battery (if enabled) at far left
+  if (SETTINGS.statusBarClock) {
+    time_t now;
+    time(&now);
+    struct tm t;
+    localtime_r(&now, &t);
+    char clk[8];
+    if (t.tm_year >= 125)
+      snprintf(clk, sizeof(clk), "%02d:%02d", t.tm_hour, t.tm_min);
+    else
+      snprintf(clk, sizeof(clk), "--:--");
+    renderer.drawText(kChromeFont, leftX, textY, clk, true);
+    leftX += renderer.getTextWidth(kChromeFont, clk) + 8;
+  }
+  if (SETTINGS.statusBarBattery) {
+    const bool showPct = SETTINGS.hideBatteryPercentage == CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_NEVER;
+    drawBatteryLeft(renderer, Rect{leftX, textY, metrics.batteryWidth, metrics.batteryHeight}, showPct);
+    leftX += metrics.batteryWidth + (showPct ? 34 : 8);
+  }
+
+  // page count, left: "p. C / P"
+  int pageW = 0;
+  if (SETTINGS.statusBarChapterPageCount && pageCount > 0) {
+    char pg[24];
+    snprintf(pg, sizeof(pg), "p. %d / %d", currentPage, pageCount);
+    renderer.drawText(kChromeFont, leftX, textY, pg, true);
+    pageW = renderer.getTextWidth(kChromeFont, pg);
+  }
+
+  // percent, right
+  int rightUsed = 0;
+  if (SETTINGS.statusBarBookProgressPercentage) {
+    char pc[8];
+    snprintf(pc, sizeof(pc), "%.0f%%", bookProgress);
+    const int pctW = renderer.getTextWidth(kChromeFont, pc);
+    renderer.drawText(kChromeFont, rightEdge - pctW, textY, pc, true);
+    rightUsed += pctW + 10;
+  }
+  // star indicator just left of the percent
+  if (isStarred) {
+    const int starW = renderer.getTextWidth(kChromeFont, "*");
+    renderer.drawText(kChromeFont, rightEdge - rightUsed - starW, textY, "*", true);
+    rightUsed += starW + 10;
+  }
+
+  // chapter title, centred in the space between left and right content
+  if (SETTINGS.statusBarTitle != CrossPointSettings::STATUS_BAR_TITLE::HIDE_TITLE && !title.empty()) {
+    const int regionL = leftX + pageW + 12;
+    const int regionR = rightEdge - rightUsed - 12;
+    const int avail = regionR - regionL;
+    if (avail > 40) {
+      auto t = renderer.truncatedText(kChromeFont, title.c_str(), avail);
+      const int tw = renderer.getTextWidth(kChromeFont, t.c_str());
+      renderer.drawText(kChromeFont, regionL + (avail - tw) / 2, textY, t.c_str(), true);
+    }
+  }
 }
 
 // ── Popup — paper card with 2px border and Garamond title ────────────────────────
