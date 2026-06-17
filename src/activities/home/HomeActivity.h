@@ -67,6 +67,11 @@ class HomeActivity final : public Activity {
   void doSync();
   void performSyncAfterWifi();
 
+  // Magnus (cover-led hero + stacks list + bottom tab bar) — has its own navigation loop
+  // (decoupled from CrossPet so the stacks cap and tab destinations can differ).
+  void renderMagnus();
+  void loopMagnus();
+
   // Theme-specific render/loop dispatchers
   void renderCrossPet();
   void renderClassic();

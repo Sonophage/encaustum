@@ -32,6 +32,10 @@ class RecentBooksActivity final : public Activity {
   // Render a single cover card at grid position
   void renderCover(int bookIdx, int gridCol, int gridRow, int cardW, int cardH, int startX, int startY, bool selected);
 
+  // Magnus theme: bespoke "The Stacks / Recently Opened" 2-column cover grid.
+  void renderMagnus();
+  void renderMagnusCard(int bookIdx, int cardX, int cardY, int cardW, int cardH, bool selected);
+
  public:
   explicit RecentBooksActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
       : Activity("RecentBooks", renderer, mappedInput) {}

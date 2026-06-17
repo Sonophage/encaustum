@@ -21,6 +21,7 @@
 #include "SettingsList.h"
 #include "StatusBarSettingsActivity.h"
 #include "activities/tools/SleepImagePickerActivity.h"
+#include "activities/tools/ToolsActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
 #ifdef ENABLE_BLE
 #include "BluetoothSettingsActivity.h"
@@ -81,6 +82,9 @@ void SettingsActivity::onEnter() {
                          SettingInfo::Action(StrId::STR_SLEEP_SCREEN, SettingAction::SleepScreen));
   controlsSettings.insert(controlsSettings.begin(),
                           SettingInfo::Action(StrId::STR_REMAP_FRONT_BUTTONS, SettingAction::RemapFrontButtons));
+  // Apps (File Transfer, Clock, Pet, Reading Stats, Sleep Image, …) — the Magnus home
+  // tab bar has no Tools tab, so surface the Apps menu here for every theme.
+  systemSettings.insert(systemSettings.begin(), SettingInfo::Action(StrId::STR_TOOLS, SettingAction::Tools));
 #ifdef ENABLE_BLE
   systemSettings.push_back(SettingInfo::Action(StrId::STR_BLE_REMOTE, SettingAction::BluetoothRemote));
 #endif
@@ -351,6 +355,9 @@ void SettingsActivity::toggleCurrentSetting() {
         startActivityForResult(
             std::make_unique<FontSelectActivity>(renderer, mappedInput, FontSelectActivity::SelectMode::Reader),
             resultHandler);
+        break;
+      case SettingAction::Tools:
+        startActivityForResult(std::make_unique<ToolsActivity>(renderer, mappedInput), resultHandler);
         break;
 #ifdef ENABLE_BLE
       case SettingAction::BluetoothRemote:

@@ -1599,7 +1599,7 @@ const char* const STRINGS_EN[] = {
     "Lft, Bck, Cnfrm, Rght",
     "Prev/Next",
     "Next/Prev",
-    "Noto Serif",
+    "Atkinson",
     "Lexend",
     "Open Dyslexic",
     "Bokerlam",
@@ -1715,6 +1715,7 @@ const char* const STRINGS_EN[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Sunlight Fading Fix",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -2687,6 +2688,7 @@ const char* const STRINGS_ES[] = {
     "Lyra Extendido",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Correcci\xC3"
     "\xB3"
     "n de desvanecimiento",
@@ -3875,6 +3877,7 @@ const char* const STRINGS_FR[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Correction lisibilit\xC3"
     "\xA9"
     " au soleil",
@@ -4860,6 +4863,7 @@ const char* const STRINGS_DE[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Anti-Verblassen",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -6660,6 +6664,7 @@ const char* const STRINGS_CS[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Oprava blednut\xC3"
     "\xAD"
     " na slunci",
@@ -7955,6 +7960,7 @@ const char* const STRINGS_PO[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Ajuste desbotamento ao sol",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -15409,6 +15415,7 @@ const char* const STRINGS_RU[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "\xD0"
     "\x9A"
     "\xD0"
@@ -18675,6 +18682,7 @@ const char* const STRINGS_SV[] = {
     "kad",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Fix f\xC3"
     "\xB6"
     "r solskensmattning",
@@ -20101,6 +20109,7 @@ const char* const STRINGS_RO[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Corec\xC5"
     "\xA3"
     "ie estompare lumin\xC4"
@@ -21241,6 +21250,7 @@ const char* const STRINGS_CA[] = {
     "Lyra Ampliat",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Correcci\xC3"
     "\xB3"
     " de l'esva\xC3"
@@ -29513,6 +29523,7 @@ const char* const STRINGS_UK[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "\xD0"
     "\x92"
     "\xD0"
@@ -39241,6 +39252,7 @@ const char* const STRINGS_BE[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "\xD0"
     "\x9A"
     "\xD0"
@@ -42126,6 +42138,7 @@ const char* const STRINGS_IT[] = {
     "Lyra Esteso",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Fix Sbiadimento da Luce Solare",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -43474,6 +43487,7 @@ const char* const STRINGS_PL[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Przeciwdzia\xC5"
     "\x82"
     "anie blakni\xC4"
@@ -44756,6 +44770,7 @@ const char* const STRINGS_FI[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Auringonvalon haalistumiskorjaus",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -45842,6 +45857,7 @@ const char* const STRINGS_DA[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Sollysfading-rettelse",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -46648,6 +46664,7 @@ const char* const STRINGS_NL[] = {
     "Lyra Uitgebreid",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Zonlicht vervaging fix",
     "Dark Mode",
     "Keep Clock On (Beta)",
@@ -48292,6 +48309,7 @@ const char* const STRINGS_TR[] = {
     "",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "G\xC3"
     "\xBC"
     "ne\xC5"
@@ -54472,6 +54490,7 @@ const char* const STRINGS_KK[] = {
     "",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "\xD0"
     "\x9A"
     "\xD2"
@@ -59507,6 +59526,7 @@ const char* const STRINGS_VI[] = {
     "ng",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "S\xE1"
     "\xBB"
     "\xAD"
@@ -63483,6 +63503,7 @@ const char* const STRINGS_HU[] = {
     "Lyra Extended",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Napf\xC3"
     "\xA9"
     "ny halv\xC3"
@@ -64813,6 +64834,7 @@ const char* const STRINGS_LT[] = {
     "Lyra Ext.",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Bly\xC5"
     "\xA1"
     "kumo pataisa",
@@ -65827,6 +65849,7 @@ const char* const STRINGS_SI[] = {
     "irjena",
     "CrossPet Reader",
     "CrossPet Classic",
+    "Magnus",
     "Popravek bledenja na soncu",
     "Dark Mode",
     "Keep Clock On (Beta)",

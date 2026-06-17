@@ -25,6 +25,7 @@ enum class SettingAction {
   Reboot,
   SleepScreen,
   FontSelectReader,
+  Tools,
 #ifdef ENABLE_BLE
   BluetoothRemote,
 #endif

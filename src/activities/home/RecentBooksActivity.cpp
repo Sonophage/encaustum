@@ -5,10 +5,17 @@
 #include <I18n.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
+#include <string>
 
+#include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
+#include "components/themes/magnus/MagnusGlobals.h"
+#include "components/themes/magnus/MagnusTheme.h"
 #include "fontIds.h"
 
 namespace {
@@ -130,6 +137,10 @@ void RecentBooksActivity::renderCover(int bookIdx, int gridCol, int gridRow,
 }
 
 void RecentBooksActivity::render(RenderLock&&) {
+  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS) {
+    renderMagnus();
+    return;
+  }
   renderer.clearScreen();
 
   const int pageWidth = renderer.getScreenWidth();
@@ -171,6 +182,181 @@ void RecentBooksActivity::render(RenderLock&&) {
       const int pw = renderer.getTextWidth(SMALL_FONT_ID, pageStr);
       renderer.drawText(SMALL_FONT_ID, pageWidth - pw - 10,
                         pageHeight - metrics.buttonHintsHeight - 16, pageStr, true);
+    }
+  }
+
+  const auto labels = mappedInput.mapLabels(tr(STR_HOME), tr(STR_OPEN), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+
+  renderer.displayBuffer();
+}
+
+// ── Magnus theme: "The Stacks / Recently Opened" 2-column cover grid ──────────
+namespace {
+// Small inverted (filled) chip with tracked white caps — READING / FILED ribbons.
+void chip(const GfxRenderer& r, int x, int y, const char* label) {
+  const int tw = magnus::trackedWidth(r, magnus::FONT_CHROME, label, 1);
+  const int h = r.getLineHeight(magnus::FONT_CHROME) + 4;
+  const int w = tw + 12;
+  r.fillRect(x, y, w, h, true);
+  magnus::tracked(r, magnus::FONT_CHROME, x + 6, y + 2, label, 1, false);
+}
+}  // namespace
+
+void RecentBooksActivity::renderMagnusCard(int bookIdx, int cardX, int cardY, int cardW, int cardH, bool selected) {
+  const RecentBook& book = recentBooks[bookIdx];
+  const bool done = book.progressPercent >= 100;
+
+  // card frame (thicker when selected)
+  magnus::frame(renderer, Rect{cardX, cardY, cardW, cardH}, selected ? 3 : 1);
+
+  bool coverDrawn = false;
+  if (!book.coverBmpPath.empty()) {
+    const std::string thumbPath = UITheme::getCoverThumbPath(book.coverBmpPath, THUMB_H);
+    FsFile f;
+    if (Storage.openFileForRead("RBA_MAG", thumbPath, f)) {
+      Bitmap bmp(f);
+      if (bmp.parseHeaders() == BmpReaderError::Ok) {
+        const int bmpW = std::min((int)bmp.getWidth(), cardW - 6);
+        const int bmpH = std::min((int)bmp.getHeight(), cardH - 6);
+        renderer.drawBitmap(bmp, cardX + (cardW - bmpW) / 2, cardY + 3, bmpW, bmpH);
+        coverDrawn = true;
+      }
+      f.close();
+    }
+  }
+
+  if (!coverDrawn) {
+    // archival placeholder: texture by reading state, serif title, the Eye, fonds beneath
+    const Rect inner{cardX + 3, cardY + 3, cardW - 6, cardH - 6};
+    if (done)
+      ;  // finished → clean paper card
+    else if (book.progressPercent > 0)
+      magnus::hatch(renderer, inner);  // in progress
+    else
+      magnus::dots(renderer, inner);  // not yet opened
+
+    // case number, top
+    const std::string code = magnus::bookCode(book.path);
+    magnus::centerTracked(renderer, magnus::FONT_CHROME, cardX + cardW / 2, cardY + 10, code.c_str(), 1);
+
+    // title (serif, wrapped, with a solid backing for legibility over texture)
+    auto lines = renderer.wrappedText(magnus::FONT_TITLE, book.title.c_str(), cardW - 18, 3, EpdFontFamily::REGULAR);
+    const int tlH = renderer.getLineHeight(magnus::FONT_TITLE);
+    int ty = cardY + 30;
+    for (const auto& ln : lines) {
+      const int lw = renderer.getTextWidth(magnus::FONT_TITLE, ln.c_str());
+      const int lx = cardX + (cardW - lw) / 2;
+      renderer.fillRect(lx - 4, ty - 2, lw + 8, tlH + 2, false);
+      renderer.drawText(magnus::FONT_TITLE, lx, ty, ln.c_str(), true, EpdFontFamily::REGULAR);
+      ty += tlH;
+    }
+
+    // the Eye, lower third
+    magnus::eye(renderer, cardX + cardW / 2, cardY + cardH - 46, 46, 30, false, 2);
+
+    // fonds, just above the progress strip
+    const char* fonds = magnus::fondsFor(book.path);
+    magnus::centerTracked(renderer, magnus::FONT_CHROME, cardX + cardW / 2, cardY + cardH - 22, fonds, 1);
+  }
+
+  // progress strip along the bottom edge (inside the frame)
+  magnus::ditherBar(renderer, Rect{cardX + 3, cardY + cardH - 8, cardW - 6, 5}, book.progressPercent);
+
+  // ribbons
+  if (done) {
+    const int tw = magnus::trackedWidth(renderer, magnus::FONT_CHROME, "FILED", 1);
+    chip(renderer, cardX + cardW - (tw + 12) - 4, cardY + 4, "FILED");
+  } else if (bookIdx == 0) {
+    const int h = renderer.getLineHeight(magnus::FONT_CHROME) + 4;
+    chip(renderer, cardX + 4, cardY + cardH - 8 - h - 2, "READING");
+  }
+
+  // caption beneath the card: "MAG-XXXXXXX · 88%"
+  char tail[12];
+  if (done)
+    snprintf(tail, sizeof(tail), "DONE");
+  else
+    snprintf(tail, sizeof(tail), "%d%%", book.progressPercent);
+  std::string cap = magnus::bookCode(book.path) + "  \xC2\xB7  " + tail;
+  auto capT = renderer.truncatedText(magnus::FONT_CHROME, cap.c_str(), cardW);
+  renderer.drawText(magnus::FONT_CHROME, cardX, cardY + cardH + 6, capT.c_str(), true);
+}
+
+void RecentBooksActivity::renderMagnus() {
+  renderer.clearScreen();
+  const int sw = renderer.getScreenWidth();
+  const int sh = renderer.getScreenHeight();
+  const int PAD = magnus::SIDE_PAD;
+
+  // ── Status strip ────────────────────────────────────────────────────────────
+  {
+    char clk[8];
+    time_t now = time(nullptr);
+    struct tm t;
+    localtime_r(&now, &t);
+    if (t.tm_year >= 125)
+      snprintf(clk, sizeof(clk), "%02d:%02d", t.tm_hour, t.tm_min);
+    else
+      snprintf(clk, sizeof(clk), "--:--");
+    renderer.drawText(magnus::FONT_CHROME, PAD, 8, clk, true);
+    const bool showPct =
+        SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
+    const int battX = sw - 12 - MagnusMetrics::values.batteryWidth;
+    GUI.drawBatteryRight(
+        renderer, Rect{battX, 7, MagnusMetrics::values.batteryWidth, MagnusMetrics::values.batteryHeight}, showPct);
+    magnus::rule(renderer, 0, 29, sw, 1);
+  }
+
+  // ── Title block ───────────────────────────────────────────────────────────────
+  magnus::eyebrow(renderer, PAD, 44, "THE STACKS");
+  renderer.drawText(magnus::FONT_TITLE, PAD, 58, "Recently Opened", true, EpdFontFamily::REGULAR);
+  {
+    // right: catalogue count
+    char cnt[24];
+    snprintf(cnt, sizeof(cnt), "%d CATALOGUED", (int)recentBooks.size());
+    const int cw = magnus::trackedWidth(renderer, magnus::FONT_CHROME, cnt, 1);
+    magnus::tracked(renderer, magnus::FONT_CHROME, sw - PAD - cw, 64, cnt, 1);
+  }
+  const int titleBottom = 58 + renderer.getLineHeight(magnus::FONT_TITLE) + 8;
+  magnus::rule(renderer, 0, titleBottom, sw);
+
+  const int hintsH = MagnusMetrics::values.buttonHintsHeight;
+
+  if (recentBooks.empty()) {
+    magnus::eyebrow(renderer, PAD, titleBottom + 40, "THE STACKS ARE EMPTY");
+    renderer.drawText(magnus::FONT_BODY, PAD, titleBottom + 66, "No statements on record.", true);
+  } else {
+    // ── Grid ──────────────────────────────────────────────────────────────────
+    const int gridTop = titleBottom + 16;
+    constexpr int cols = 2;
+    constexpr int gap = 18;
+    const int areaW = sw - 2 * PAD;
+    const int cardW = (areaW - gap * (cols - 1)) / cols;
+    const int cardH = (int)(cardW * 1.42f);
+    const int captionH = renderer.getLineHeight(magnus::FONT_CHROME) + 6;
+    const int rowH = cardH + captionH + 16;
+    const int contentBottom = sh - hintsH - 10;
+    const int rows = std::max(1, (contentBottom - gridTop) / rowH);
+    itemsPerPage = std::max(1, rows * cols);
+
+    const int total = static_cast<int>(recentBooks.size());
+    const int endIdx = std::min(pageOffset + itemsPerPage, total);
+    for (int i = pageOffset; i < endIdx; i++) {
+      const int local = i - pageOffset;
+      const int col = local % cols;
+      const int row = local / cols;
+      const int cx = PAD + col * (cardW + gap);
+      const int cy = gridTop + row * rowH;
+      renderMagnusCard(i, cx, cy, cardW, cardH, i == selectorIndex);
+    }
+
+    // page indicator
+    if (totalPages() > 1) {
+      char pageStr[16];
+      snprintf(pageStr, sizeof(pageStr), "%d / %d", (selectorIndex / itemsPerPage) + 1, totalPages());
+      const int pw = renderer.getTextWidth(magnus::FONT_CHROME, pageStr);
+      renderer.drawText(magnus::FONT_CHROME, sw - PAD - pw, sh - hintsH - 18, pageStr, true);
     }
   }
 

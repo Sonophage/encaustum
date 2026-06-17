@@ -127,6 +127,40 @@ EpdFont notoUI12Regular(&notosans_12_regular);
 EpdFont notoUI12Bold(&notosans_12_bold);
 EpdFontFamily ui12FontFamily(&notoUI12Regular, &notoUI12Bold);
 
+// Magnus theme fonts — EB Garamond (serif titles, semibold + italic) and Courier Prime (mono chrome).
+// Garamond title sizes use semibold as the base weight; bold/bolditalic fall back accordingly.
+EpdFont ebgaramond12SemiBoldFont(&ebgaramond_12_semibold);
+EpdFont ebgaramond12ItalicFont(&ebgaramond_12_italic);
+EpdFontFamily ebgaramond12FontFamily(&ebgaramond12SemiBoldFont, &ebgaramond12SemiBoldFont, &ebgaramond12ItalicFont,
+                                     &ebgaramond12ItalicFont);
+EpdFont ebgaramond18SemiBoldFont(&ebgaramond_18_semibold);
+EpdFontFamily ebgaramond18FontFamily(&ebgaramond18SemiBoldFont);
+EpdFont courier10RegularFont(&courierprime_10_regular);
+EpdFontFamily courier10FontFamily(&courier10RegularFont);
+EpdFont courier12RegularFont(&courierprime_12_regular);
+EpdFont courier12BoldFont(&courierprime_12_bold);
+EpdFontFamily courier12FontFamily(&courier12RegularFont, &courier12BoldFont);
+EpdFont courier14RegularFont(&courierprime_14_regular);
+EpdFontFamily courier14FontFamily(&courier14RegularFont);
+
+// Atkinson Hyperlegible — reader body font (uncompressed). BoldItalic falls back to Italic.
+EpdFont atkinson12RegularFont(&atkinson_12_regular);
+EpdFont atkinson12BoldFont(&atkinson_12_bold);
+EpdFont atkinson12ItalicFont(&atkinson_12_italic);
+EpdFontFamily atkinson12FontFamily(&atkinson12RegularFont, &atkinson12BoldFont, &atkinson12ItalicFont, &atkinson12ItalicFont);
+EpdFont atkinson14RegularFont(&atkinson_14_regular);
+EpdFont atkinson14BoldFont(&atkinson_14_bold);
+EpdFont atkinson14ItalicFont(&atkinson_14_italic);
+EpdFontFamily atkinson14FontFamily(&atkinson14RegularFont, &atkinson14BoldFont, &atkinson14ItalicFont, &atkinson14ItalicFont);
+EpdFont atkinson16RegularFont(&atkinson_16_regular);
+EpdFont atkinson16BoldFont(&atkinson_16_bold);
+EpdFont atkinson16ItalicFont(&atkinson_16_italic);
+EpdFontFamily atkinson16FontFamily(&atkinson16RegularFont, &atkinson16BoldFont, &atkinson16ItalicFont, &atkinson16ItalicFont);
+EpdFont atkinson18RegularFont(&atkinson_18_regular);
+EpdFont atkinson18BoldFont(&atkinson_18_bold);
+EpdFont atkinson18ItalicFont(&atkinson_18_italic);
+EpdFontFamily atkinson18FontFamily(&atkinson18RegularFont, &atkinson18BoldFont, &atkinson18ItalicFont, &atkinson18ItalicFont);
+
 // RTC memory persists across deep sleep — used to restore clock with elapsed time correction.
 // Magic sentinel confirms the values were set by a clean sleep entry (not stale/garbage).
 static constexpr uint32_t SLEEP_RTC_MAGIC = 0x43524C4B;  // "CRLK"
@@ -324,6 +358,19 @@ void setupDisplayAndFonts() {
   renderer.insertFont(UI_10_FONT_ID, ui12FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
+
+  // Magnus theme fonts
+  renderer.insertFont(EBGARAMOND_12_FONT_ID, ebgaramond12FontFamily);
+  renderer.insertFont(EBGARAMOND_18_FONT_ID, ebgaramond18FontFamily);
+  renderer.insertFont(COURIER_10_FONT_ID, courier10FontFamily);
+  renderer.insertFont(COURIER_12_FONT_ID, courier12FontFamily);
+  renderer.insertFont(COURIER_14_FONT_ID, courier14FontFamily);
+
+  // Atkinson Hyperlegible — reader body font (uncompressed, renders despite the compressed-font issue)
+  renderer.insertFont(ATKINSON_12_FONT_ID, atkinson12FontFamily);
+  renderer.insertFont(ATKINSON_14_FONT_ID, atkinson14FontFamily);
+  renderer.insertFont(ATKINSON_16_FONT_ID, atkinson16FontFamily);
+  renderer.insertFont(ATKINSON_18_FONT_ID, atkinson18FontFamily);
   LOG_DBG("MAIN", "Fonts setup");
 }
 

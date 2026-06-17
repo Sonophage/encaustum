@@ -16,3 +16,18 @@
 #define UI_10_FONT_ID (1641233821)
 #define UI_12_FONT_ID (1641233821)
 #define SMALL_FONT_ID (674098198)
+
+// Magnus theme fonts — EB Garamond (serif titles) + Courier Prime (mono chrome)
+#define EBGARAMOND_12_FONT_ID (400858738)
+#define EBGARAMOND_16_FONT_ID (-977819224)
+#define EBGARAMOND_18_FONT_ID (379769916)
+#define EBGARAMOND_24_FONT_ID (800838994)
+#define COURIER_10_FONT_ID (1709403071)
+#define COURIER_12_FONT_ID (-1391583858)
+#define COURIER_14_FONT_ID (-194092495)
+
+// Atkinson Hyperlegible — reader body font (uncompressed; replaces stock NotoSerif slot)
+#define ATKINSON_12_FONT_ID (993601902)
+#define ATKINSON_14_FONT_ID (-1821822038)
+#define ATKINSON_16_FONT_ID (-1298822620)
+#define ATKINSON_18_FONT_ID (-1642333000)

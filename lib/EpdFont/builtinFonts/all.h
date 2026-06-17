@@ -39,3 +39,26 @@
 #include <builtinFonts/bokerlam_18_bold.h>
 #include <builtinFonts/bokerlam_18_italic.h>
 #include <builtinFonts/bokerlam_18_regular.h>
+
+// Magnus theme fonts
+#include <builtinFonts/ebgaramond_12_semibold.h>
+#include <builtinFonts/ebgaramond_12_italic.h>
+#include <builtinFonts/ebgaramond_18_semibold.h>
+#include <builtinFonts/courierprime_10_regular.h>
+#include <builtinFonts/courierprime_12_regular.h>
+#include <builtinFonts/courierprime_12_bold.h>
+#include <builtinFonts/courierprime_14_regular.h>
+
+// Atkinson Hyperlegible — reader body (uncompressed)
+#include <builtinFonts/atkinson_12_regular.h>
+#include <builtinFonts/atkinson_12_bold.h>
+#include <builtinFonts/atkinson_12_italic.h>
+#include <builtinFonts/atkinson_14_regular.h>
+#include <builtinFonts/atkinson_14_bold.h>
+#include <builtinFonts/atkinson_14_italic.h>
+#include <builtinFonts/atkinson_16_regular.h>
+#include <builtinFonts/atkinson_16_bold.h>
+#include <builtinFonts/atkinson_16_italic.h>
+#include <builtinFonts/atkinson_18_regular.h>
+#include <builtinFonts/atkinson_18_bold.h>
+#include <builtinFonts/atkinson_18_italic.h>

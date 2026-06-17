@@ -229,6 +229,8 @@ void HomeActivity::loop() {
     loopOriginal();
   else if (SETTINGS.uiTheme == CrossPointSettings::CROSSPET_CLASSIC)
     loopClassic();
+  else if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS)
+    loopMagnus();
   else
     loopCrossPet();
 }
@@ -238,6 +240,8 @@ void HomeActivity::render(RenderLock&&) {
     renderOriginal();
   else if (SETTINGS.uiTheme == CrossPointSettings::CROSSPET_CLASSIC)
     renderClassic();
+  else if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS)
+    renderMagnus();
   else
     renderCrossPet();
 }

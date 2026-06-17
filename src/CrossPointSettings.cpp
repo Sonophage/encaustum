@@ -300,18 +300,18 @@ int CrossPointSettings::getRefreshFrequency() const {
 
 int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
-    case NOTOSERIF:
+    case NOTOSERIF:  // slot repurposed for Atkinson Hyperlegible (uncompressed reader font)
     default:
       switch (fontSize) {
         case SMALL:
-          return NOTOSERIF_12_FONT_ID;
+          return ATKINSON_12_FONT_ID;
         case MEDIUM:
         default:
-          return NOTOSERIF_14_FONT_ID;
+          return ATKINSON_14_FONT_ID;
         case LARGE:
-          return NOTOSERIF_16_FONT_ID;
+          return ATKINSON_16_FONT_ID;
         case EXTRA_LARGE:
-          return NOTOSERIF_18_FONT_ID;
+          return ATKINSON_18_FONT_ID;
       }
     case LEXEND:
       switch (fontSize) {
