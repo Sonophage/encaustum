@@ -101,13 +101,11 @@ MappedInputManager::Labels MappedInputManager::mapLabels(const char* back, const
     return "";
   };
 
-  // In PortraitInverted, the device is flipped 180° so the physical button order is reversed.
-  // Swap the hardware positions so labels match what the user physically sees.
-  if (SETTINGS.orientation == CrossPointSettings::ORIENTATION::INVERTED) {
-    return {labelForHardware(HalGPIO::BTN_RIGHT), labelForHardware(HalGPIO::BTN_LEFT),
-            labelForHardware(HalGPIO::BTN_CONFIRM), labelForHardware(HalGPIO::BTN_BACK)};
-  }
-
+  // Always return labels in fixed physical (left-to-right) front-button order.
+  // The 180° reversal for a flipped device is applied by drawButtonHints, which keys off the
+  // *actual* render orientation — the correct source of truth. The orientation SETTING applies
+  // only inside the reader (menus reset to Portrait on reader exit), so swapping here off the
+  // global setting wrongly reversed menu hint labels while the menu itself rendered upright.
   return {labelForHardware(HalGPIO::BTN_BACK), labelForHardware(HalGPIO::BTN_CONFIRM),
           labelForHardware(HalGPIO::BTN_LEFT), labelForHardware(HalGPIO::BTN_RIGHT)};
 }
