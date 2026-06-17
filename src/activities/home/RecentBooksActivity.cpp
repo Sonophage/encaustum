@@ -252,12 +252,13 @@ void RecentBooksActivity::renderMagnusCard(int bookIdx, int cardX, int cardY, in
       ty += tlH;
     }
 
-    // the Eye, lower third
-    magnus::eye(renderer, cardX + cardW / 2, cardY + cardH - 46, 46, 30, false, 2);
+    // the Eye, centred in the lower half
+    const int eyeCy = cardY + cardH / 2 + 10;
+    magnus::eye(renderer, cardX + cardW / 2, eyeCy, 46, 30, false, 2);
 
-    // fonds, just above the progress strip
+    // fonds beneath the Eye (kept clear of the ribbon + progress strip below)
     const char* fonds = magnus::fondsFor(book.path);
-    magnus::centerTracked(renderer, magnus::FONT_CHROME, cardX + cardW / 2, cardY + cardH - 22, fonds, 1);
+    magnus::centerTracked(renderer, magnus::FONT_CHROME, cardX + cardW / 2, eyeCy + 24, fonds, 1);
   }
 
   // progress strip along the bottom edge (inside the frame)
@@ -272,15 +273,18 @@ void RecentBooksActivity::renderMagnusCard(int bookIdx, int cardX, int cardY, in
     chip(renderer, cardX + 4, cardY + cardH - 8 - h - 2, "READING");
   }
 
-  // caption beneath the card: "MAG-XXXXXXX · 88%"
-  char tail[12];
+  // caption beneath the card: case number (left) + percent/DONE (right), so neither truncates
+  const int capY = cardY + cardH + 6;
+  char tail[8];
   if (done)
     snprintf(tail, sizeof(tail), "DONE");
   else
     snprintf(tail, sizeof(tail), "%d%%", book.progressPercent);
-  std::string cap = magnus::bookCode(book.path) + "  \xC2\xB7  " + tail;
-  auto capT = renderer.truncatedText(magnus::FONT_CHROME, cap.c_str(), cardW);
-  renderer.drawText(magnus::FONT_CHROME, cardX, cardY + cardH + 6, capT.c_str(), true);
+  const int tw = renderer.getTextWidth(magnus::FONT_CHROME, tail);
+  const std::string code = magnus::bookCode(book.path);
+  auto codeT = renderer.truncatedText(magnus::FONT_CHROME, code.c_str(), cardW - tw - 10);
+  renderer.drawText(magnus::FONT_CHROME, cardX, capY, codeT.c_str(), true);
+  renderer.drawText(magnus::FONT_CHROME, cardX + cardW - tw, capY, tail, true);
 }
 
 void RecentBooksActivity::renderMagnus() {
@@ -315,8 +319,8 @@ void RecentBooksActivity::renderMagnus() {
     // right: catalogue count
     char cnt[24];
     snprintf(cnt, sizeof(cnt), "%d CATALOGUED", (int)recentBooks.size());
-    const int cw = magnus::trackedWidth(renderer, magnus::FONT_CHROME, cnt, 1);
-    magnus::tracked(renderer, magnus::FONT_CHROME, sw - PAD - cw, 64, cnt, 1);
+    const int cw = renderer.getTextWidth(magnus::FONT_CHROME, cnt);
+    renderer.drawText(magnus::FONT_CHROME, sw - PAD - cw, 64, cnt, true);
   }
   const int titleBottom = 58 + renderer.getLineHeight(magnus::FONT_TITLE) + 8;
   magnus::rule(renderer, 0, titleBottom, sw);

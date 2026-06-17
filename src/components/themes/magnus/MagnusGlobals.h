@@ -105,6 +105,14 @@ inline int utf8Step(unsigned char c) {
   return 1;
 }
 
+// Single-glyph advance. Fonts report a lone space as ~0 wide (word spacing is added only in
+// string context), so substitute a representative glyph width to keep tracked words apart.
+inline int glyphAdvance(const GfxRenderer& r, int fontId, const char* glyph, EpdFontFamily::Style st) {
+  int w = r.getTextWidth(fontId, glyph, st);
+  if (w == 0 && (unsigned char)glyph[0] <= ' ') w = r.getTextWidth(fontId, "n", st);
+  return w;
+}
+
 // Measure the advance width of `s` rendered with per-glyph `track`.
 inline int trackedWidth(const GfxRenderer& r, int fontId, const char* s, int track,
                         EpdFontFamily::Style st = EpdFontFamily::REGULAR) {
@@ -114,7 +122,7 @@ inline int trackedWidth(const GfxRenderer& r, int fontId, const char* s, int tra
     const int n = utf8Step((unsigned char)*p);
     char buf[5] = {0};
     for (int i = 0; i < n && p[i]; ++i) buf[i] = p[i];
-    w += r.getTextWidth(fontId, buf, st) + track;
+    w += glyphAdvance(r, fontId, buf, st) + track;
     any = true;
     p += n;
   }
@@ -130,7 +138,7 @@ inline int tracked(const GfxRenderer& r, int fontId, int x, int y, const char* s
     char buf[5] = {0};
     for (int i = 0; i < n && p[i]; ++i) buf[i] = p[i];
     r.drawText(fontId, cx, y, buf, black, st);
-    cx += r.getTextWidth(fontId, buf, st) + track;
+    cx += glyphAdvance(r, fontId, buf, st) + track;
     p += n;
   }
   return cx - x - (cx > x ? track : 0);
