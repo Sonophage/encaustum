@@ -23,6 +23,7 @@
 #include "ReadingStats.h"
 #include "activities/reader/ReaderUtils.h"
 #include "components/UITheme.h"
+#include "components/themes/magnus/MagnusGlobals.h"
 #include "fontIds.h"
 #include "images/Logo120.h"
 #include "activities/tools/WeatherActivity.h"
@@ -346,6 +347,22 @@ void SleepActivity::renderSleepPet(int /*scale*/) const {}
 void SleepActivity::renderDefaultSleepScreen() const {
   const int pageWidth  = renderer.getScreenWidth();
   const int pageHeight = renderer.getScreenHeight();
+
+  // Magnus "THE EYE" sleep plate — ink-on-paper seal. Same refresh/fading-fix
+  // sequence as the stock plate to keep e-ink ghosting handling identical.
+  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS) {
+    renderer.clearScreen();
+    const int cx = pageWidth / 2;
+    magnus::centerTracked(renderer, magnus::FONT_CHROME, cx, pageHeight / 2 - 140, "THE MAGNUS INSTITUTE", 3);
+    magnus::eye(renderer, cx, pageHeight / 2 - 30, 170, 110, true, 3);
+    magnus::centerTracked(renderer, magnus::FONT_CHROME, cx, pageHeight / 2 + 80, "THE EYE", 4);
+    magnus::rule(renderer, cx - 60, pageHeight / 2 + 104, 120, 1);
+    renderer.drawCenteredText(magnus::FONT_CHROME, pageHeight - 40, CROSSPOINT_VERSION);
+    renderer.setFadingFix(true);
+    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    renderer.setFadingFix(SETTINGS.fadingFix);
+    return;
+  }
 
   renderer.clearScreen();
 
