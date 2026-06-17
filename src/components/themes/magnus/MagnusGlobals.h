@@ -48,10 +48,11 @@ inline const char* fondsFor(const std::string& path) {
 }
 
 // ── Spacing tokens ──────────────────────────────────────────────────────────
-constexpr int SIDE_PAD = 22;  // standard content side padding
-constexpr int RULE = 2;       // section / header rule thickness
-constexpr int HAIR = 1;       // hairline divider thickness
-constexpr int GAP = 12;       // standard vertical gap
+constexpr int SIDE_PAD = 22;   // standard content side padding
+constexpr int RULE = 2;        // section / header rule thickness
+constexpr int HAIR = 1;        // hairline divider thickness
+constexpr int GAP = 12;        // standard vertical gap
+constexpr int READER_TOP = 30; // reader page top-strip height (clock · case no. · battery)
 
 // ── Type roles (all UNCOMPRESSED tables — compressed garbles on this build) ──
 constexpr int FONT_TITLE = EBGARAMOND_18_FONT_ID;   // screen / dialog titles

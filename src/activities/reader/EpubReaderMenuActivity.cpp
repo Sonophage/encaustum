@@ -7,6 +7,7 @@
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
+#include "components/themes/magnus/MagnusGlobals.h"
 #include "fontIds.h"
 
 // Font family/size label arrays for rendering current values
@@ -174,12 +175,22 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   const int hintGutterHeight = isPortraitInverted ? 50 : 0;
   const int contentY = hintGutterHeight;
 
-  // Header: book title bold centered
+  // Theme-selected fonts: Magnus uses Garamond titles/items + Courier chrome.
+  const bool mag = SETTINGS.uiTheme == CrossPointSettings::MAGNUS;
+  const int titleFont = mag ? magnus::FONT_TITLE : UI_12_FONT_ID;
+  const EpdFontFamily::Style titleStyle = mag ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
+  const int itemFont = mag ? magnus::FONT_BODY : UI_10_FONT_ID;
+  const int subFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
+  const int valFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
+
+  // Header: book title centered (+ Magnus eyebrow)
+  if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "READING MENU");
+  const int titleY = (mag ? 22 : 15) + contentY;
   const std::string truncTitle =
-      renderer.truncatedText(UI_12_FONT_ID, title.c_str(), contentWidth - 40, EpdFontFamily::BOLD);
+      renderer.truncatedText(titleFont, title.c_str(), contentWidth - 40, titleStyle);
   const int titleX =
-      contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, truncTitle.c_str(), EpdFontFamily::BOLD)) / 2;
-  renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, truncTitle.c_str(), true, EpdFontFamily::BOLD);
+      contentX + (contentWidth - renderer.getTextWidth(titleFont, truncTitle.c_str(), titleStyle)) / 2;
+  renderer.drawText(titleFont, titleX, titleY, truncTitle.c_str(), true, titleStyle);
 
   // Subtitle: "Chapter X · Page Y of Z · 42%"
   char subtitle[64];
@@ -189,17 +200,22 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   } else {
     snprintf(subtitle, sizeof(subtitle), "%d%%", bookProgressPercent);
   }
-  const int subW = renderer.getTextWidth(UI_10_FONT_ID, subtitle);
-  renderer.drawText(UI_10_FONT_ID, contentX + (contentWidth - subW) / 2, 42 + contentY, subtitle, true);
+  const int subY = (mag ? 50 : 42) + contentY;
+  const int subW = renderer.getTextWidth(subFont, subtitle);
+  renderer.drawText(subFont, contentX + (contentWidth - subW) / 2, subY, subtitle, true);
 
   // Sectioned list
-  int y = 64 + contentY;
+  int y = (mag ? 76 : 64) + contentY;
+  if (mag) magnus::rule(renderer, contentX, y - 8, contentWidth);
   constexpr int lineHeight = 34;
   constexpr int sectionHeaderH = 26;
 
   for (const auto& section : sections) {
-    // Section header — small font, uppercase label
-    renderer.drawText(SMALL_FONT_ID, contentX + 14, y + 4, section.label, true, EpdFontFamily::REGULAR);
+    // Section header — small-caps label (tracked for Magnus)
+    if (mag)
+      magnus::eyebrow(renderer, contentX + 14, y + 6, section.label);
+    else
+      renderer.drawText(SMALL_FONT_ID, contentX + 14, y + 4, section.label, true, EpdFontFamily::REGULAR);
     y += sectionHeaderH;
 
     // Items within section
@@ -212,8 +228,13 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
         renderer.fillRect(contentX + 14, y, contentWidth - 28, lineHeight, true);
       }
 
-      // Item label (inverted text when selected for contrast)
-      renderer.drawText(UI_10_FONT_ID, contentX + 20, y + 4, I18N.get(menuItems[itemIdx].labelId), !isSelected);
+      // Item label (inverted text when selected; Magnus adds a typewriter caret)
+      int labelX = contentX + 20;
+      if (mag && isSelected) {
+        renderer.drawText(magnus::FONT_CHROME, contentX + 16, y + 6, "\xE2\x96\xB8", false);
+        labelX = contentX + 34;
+      }
+      renderer.drawText(itemFont, labelX, y + 4, I18N.get(menuItems[itemIdx].labelId), !isSelected);
 
       // Right-aligned value for font family (show external font name if active)
       if (menuItems[itemIdx].action == MenuAction::FONT_FAMILY) {
@@ -232,37 +253,37 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
         } else {
           value = I18N.get(fontFamilyLabels[SETTINGS.fontFamily]);
         }
-        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
+        const auto width = renderer.getTextWidth(valFont, value);
+        renderer.drawText(valFont, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
       }
 
       // Right-aligned value for font size
       if (menuItems[itemIdx].action == MenuAction::FONT_SIZE) {
         const char* value = I18N.get(fontSizeLabels[SETTINGS.fontSize]);
-        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
+        const auto width = renderer.getTextWidth(valFont, value);
+        renderer.drawText(valFont, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
       }
 
       // Right-aligned value for orientation item
       if (menuItems[itemIdx].action == MenuAction::ROTATE_SCREEN) {
         const char* value = I18N.get(orientationLabels[pendingOrientation]);
-        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
+        const auto width = renderer.getTextWidth(valFont, value);
+        renderer.drawText(valFont, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
       }
 
       // Right-aligned value for auto page turn toggle: On/Off
       if (menuItems[itemIdx].action == MenuAction::AUTO_PAGE_TURN) {
         const char* value = SETTINGS.autoPageTurnEnabled ? I18N.get(StrId::STR_STATE_ON) : I18N.get(StrId::STR_STATE_OFF);
-        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
+        const auto width = renderer.getTextWidth(valFont, value);
+        renderer.drawText(valFont, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
       }
 
       // Right-aligned value for auto page turn speed: PPM number
       if (menuItems[itemIdx].action == MenuAction::AUTO_PAGE_TURN_SPEED) {
         snprintf(pageTurnValueBuf, sizeof(pageTurnValueBuf), "%d", SETTINGS.autoPageTurnSpeed);
         const char* value = pageTurnValueBuf;
-        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
+        const auto width = renderer.getTextWidth(valFont, value);
+        renderer.drawText(valFont, contentX + contentWidth - 20 - width, y + 4, value, !isSelected);
       }
 
       y += lineHeight;

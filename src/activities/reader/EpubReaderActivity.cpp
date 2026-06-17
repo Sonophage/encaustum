@@ -15,6 +15,7 @@
 #include <limits>
 
 #include "CrossPointSettings.h"
+#include "components/themes/magnus/MagnusGlobals.h"
 #include "util/PowerButtonClickDetector.h"
 #include "CrossPointState.h"
 #include "../settings/FontSelectActivity.h"
@@ -890,6 +891,10 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   orientedMarginTop += SETTINGS.screenMargin;
   orientedMarginLeft += SETTINGS.screenMargin;
   orientedMarginRight += SETTINGS.screenMargin;
+  // Magnus reserves a top strip (clock · case no. · battery) in portrait reading.
+  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+      renderer.getOrientation() == GfxRenderer::Orientation::Portrait)
+    orientedMarginTop += magnus::READER_TOP;
 
   const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
 
@@ -1230,6 +1235,40 @@ void EpubReaderActivity::renderStatusBar() const {
   const bool isStarred = section && bookmarkStore.has(static_cast<uint16_t>(currentSpineIndex),
                                                       static_cast<uint16_t>(section->currentPage));
   GUI.drawStatusBar(renderer, bookProgress, currentPage, pageCount, title, 0, textYOffset, isStarred);
+
+  // Magnus: page border + top strip (clock · case number · battery). Portrait only — the
+  // top inset is reserved to match in render()/repagination so text never overlaps it.
+  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+      renderer.getOrientation() == GfxRenderer::Orientation::Portrait) {
+    const int sw = renderer.getScreenWidth();
+    const int sh = renderer.getScreenHeight();
+    renderer.drawRect(5, 5, sw - 10, sh - 10, 1, true);  // page frame
+
+    const int sy = 12;
+    char clk[8];
+    {
+      time_t now;
+      time(&now);
+      struct tm t;
+      localtime_r(&now, &t);
+      if (t.tm_year >= 125)
+        snprintf(clk, sizeof(clk), "%02d:%02d", t.tm_hour, t.tm_min);
+      else
+        snprintf(clk, sizeof(clk), "--:--");
+    }
+    renderer.drawText(magnus::FONT_CHROME, magnus::SIDE_PAD, sy, clk, true);
+
+    const std::string code = magnus::bookCode(epub->getPath());
+    const int cwid = renderer.getTextWidth(magnus::FONT_CHROME, code.c_str());
+    renderer.drawText(magnus::FONT_CHROME, (sw - cwid) / 2, sy, code.c_str(), true);
+
+    const auto& m = UITheme::getInstance().getMetrics();
+    const bool showPct = SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
+    GUI.drawBatteryRight(renderer, Rect{sw - magnus::SIDE_PAD - m.batteryWidth, sy - 1, m.batteryWidth, m.batteryHeight},
+                         showPct);
+
+    magnus::rule(renderer, 5, magnus::READER_TOP, sw - 10, 1);  // separates strip from text
+  }
 }
 
 void EpubReaderActivity::navigateToHref(const std::string& hrefStr, const bool savePosition) {
@@ -1347,6 +1386,10 @@ bool EpubReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gf
   marginTop += SETTINGS.screenMargin;
   marginLeft += SETTINGS.screenMargin;
   marginRight += SETTINGS.screenMargin;
+  // Magnus reserves a top strip (clock · case no. · battery) in portrait reading.
+  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+      renderer.getOrientation() == GfxRenderer::Orientation::Portrait)
+    marginTop += magnus::READER_TOP;
   const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
   marginBottom += std::max(SETTINGS.screenMargin, statusBarHeight);
 

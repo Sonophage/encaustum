@@ -3,8 +3,10 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
+#include "components/themes/magnus/MagnusGlobals.h"
 #include "fontIds.h"
 
 int EpubReaderChapterSelectionActivity::getTotalItems() const { return epub->getTocItemsCount(); }
@@ -108,10 +110,19 @@ void EpubReaderChapterSelectionActivity::render(RenderLock&&) {
   const int pageItems = getPageItems();
   const int totalItems = getTotalItems();
 
-  // Manual centering to honor content gutters.
+  // Theme-selected fonts: Magnus uses Garamond rows + Courier eyebrow/chrome.
+  const bool mag = SETTINGS.uiTheme == CrossPointSettings::MAGNUS;
+  const int titleFont = mag ? magnus::FONT_TITLE : UI_12_FONT_ID;
+  const EpdFontFamily::Style titleStyle = mag ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
+  const int itemFont = mag ? magnus::FONT_BODY : UI_10_FONT_ID;
+
+  // Header (+ Magnus eyebrow + rule)
+  if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "CONTENTS");
+  const int titleY = (mag ? 22 : 15) + contentY;
   const int titleX =
-      contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, tr(STR_SELECT_CHAPTER), EpdFontFamily::BOLD)) / 2;
-  renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, tr(STR_SELECT_CHAPTER), true, EpdFontFamily::BOLD);
+      contentX + (contentWidth - renderer.getTextWidth(titleFont, tr(STR_SELECT_CHAPTER), titleStyle)) / 2;
+  renderer.drawText(titleFont, titleX, titleY, tr(STR_SELECT_CHAPTER), true, titleStyle);
+  if (mag) magnus::rule(renderer, contentX, 52 + contentY, contentWidth);
 
   const auto pageStartIndex = selectorIndex / pageItems * pageItems;
   // Highlight only the content area, not the hint gutters.
@@ -126,11 +137,19 @@ void EpubReaderChapterSelectionActivity::render(RenderLock&&) {
     auto item = epub->getTocItem(itemIndex);
 
     // Indent per TOC level while keeping content within the gutter-safe region.
-    const int indentSize = contentX + 20 + (item.level - 1) * 15;
+    int indentSize = contentX + 20 + (item.level - 1) * 15;
+    if (mag && isSelected) {
+      renderer.drawText(magnus::FONT_CHROME, indentSize - 6, displayY + 2, "\xE2\x96\xB8", false);
+      indentSize += 14;
+    }
     const std::string chapterName =
-        renderer.truncatedText(UI_10_FONT_ID, item.title.c_str(), contentWidth - 40 - indentSize);
+        renderer.truncatedText(itemFont, item.title.c_str(), contentWidth - 40 - indentSize);
 
-    renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), !isSelected);
+    renderer.drawText(itemFont, indentSize, displayY, chapterName.c_str(), !isSelected);
+
+    // hairline divider beneath unselected rows (Magnus)
+    if (mag && !isSelected)
+      magnus::hairline(renderer, contentX + 20, displayY + 26, contentWidth - 40);
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
