@@ -2,6 +2,7 @@
 
 #include <GfxRenderer.h>
 #include <HalGPIO.h>
+#include <I18n.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -158,9 +159,21 @@ void MagnusTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount
 
     if (rowValue != nullptr) {
       auto v = rowValue(i);
-      const int vw = renderer.getTextWidth(kChromeFont, v.c_str());
-      const int vy = itemY + (rowHeight - renderer.getLineHeight(kChromeFont)) / 2;
-      renderer.drawText(kChromeFont, rect.x + contentWidth - kSidePad - vw, vy, v.c_str(), !selected);
+      // Toggles render as a checkbox square (matches the Magnus settings sheet);
+      // compare against the same i18n strings so it stays locale-correct.
+      const std::string onStr = I18N.get(StrId::STR_STATE_ON);
+      const std::string offStr = I18N.get(StrId::STR_STATE_OFF);
+      if (v == onStr || v == offStr) {
+        const int box = 18;
+        const int bx = rect.x + contentWidth - kSidePad - box;
+        const int by = itemY + (rowHeight - box) / 2;
+        renderer.drawRect(bx, by, box, box, 1, !selected);
+        if (v == onStr) renderer.fillRect(bx + 4, by + 4, box - 8, box - 8, !selected);
+      } else {
+        const int vw = renderer.getTextWidth(kChromeFont, v.c_str());
+        const int vy = itemY + (rowHeight - renderer.getLineHeight(kChromeFont)) / 2;
+        renderer.drawText(kChromeFont, rect.x + contentWidth - kSidePad - vw, vy, v.c_str(), !selected);
+      }
     }
 
     // Hairline divider beneath unselected rows
