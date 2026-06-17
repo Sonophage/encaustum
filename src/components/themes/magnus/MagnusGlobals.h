@@ -55,6 +55,7 @@ constexpr int GAP = 12;        // standard vertical gap
 constexpr int READER_TOP = 30; // reader page top-strip height (clock · case no. · battery)
 
 // ── Type roles (all UNCOMPRESSED tables — compressed garbles on this build) ──
+constexpr int FONT_DISPLAY = EBGARAMOND_18_FONT_ID;  // hero numerals / splash title (24pt too costly in flash)
 constexpr int FONT_TITLE = EBGARAMOND_18_FONT_ID;   // screen / dialog titles
 constexpr int FONT_BODY = EBGARAMOND_12_FONT_ID;    // list rows, content text
 constexpr int FONT_CHROME = COURIER_10_FONT_ID;     // values, hints, status
