@@ -891,10 +891,11 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   orientedMarginTop += SETTINGS.screenMargin;
   orientedMarginLeft += SETTINGS.screenMargin;
   orientedMarginRight += SETTINGS.screenMargin;
-  // Magnus reserves a top strip (clock · case no. · battery) in portrait reading.
-  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
-      renderer.getOrientation() == GfxRenderer::Orientation::Portrait)
-    orientedMarginTop += magnus::READER_TOP;
+  // Magnus reserves a top strip (clock · case no. · battery) plus breathing room before the
+  // body text, in portrait reading.
+  const bool magnusReader = SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+                            renderer.getOrientation() == GfxRenderer::Orientation::Portrait;
+  if (magnusReader) orientedMarginTop += magnus::READER_TOP + magnus::READER_GAP;
 
   const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
 
@@ -907,6 +908,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   } else {
     orientedMarginBottom += std::max(SETTINGS.screenMargin, statusBarHeight);
   }
+  if (magnusReader) orientedMarginBottom += magnus::READER_GAP;  // breathing room above the footer
 
   const uint16_t viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
   const uint16_t viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
@@ -1242,7 +1244,12 @@ void EpubReaderActivity::renderStatusBar() const {
       renderer.getOrientation() == GfxRenderer::Orientation::Portrait) {
     const int sw = renderer.getScreenWidth();
     const int sh = renderer.getScreenHeight();
-    renderer.drawRect(5, 5, sw - 10, sh - 10, 1, true);  // page frame
+    // page frame — drawn as four explicit edges (reliable across refresh modes)
+    constexpr int fm = 6;
+    renderer.fillRect(fm, fm, sw - 2 * fm, 1, true);           // top
+    renderer.fillRect(fm, sh - fm - 1, sw - 2 * fm, 1, true);  // bottom
+    renderer.fillRect(fm, fm, 1, sh - 2 * fm, true);           // left
+    renderer.fillRect(sw - fm - 1, fm, 1, sh - 2 * fm, true);  // right
 
     const int sy = 12;
     char clk[8];
@@ -1386,12 +1393,13 @@ bool EpubReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gf
   marginTop += SETTINGS.screenMargin;
   marginLeft += SETTINGS.screenMargin;
   marginRight += SETTINGS.screenMargin;
-  // Magnus reserves a top strip (clock · case no. · battery) in portrait reading.
-  if (SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
-      renderer.getOrientation() == GfxRenderer::Orientation::Portrait)
-    marginTop += magnus::READER_TOP;
+  // Magnus reserves a top strip plus breathing room before/after the body — must match render().
+  const bool magnusReader = SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+                            renderer.getOrientation() == GfxRenderer::Orientation::Portrait;
+  if (magnusReader) marginTop += magnus::READER_TOP + magnus::READER_GAP;
   const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
   marginBottom += std::max(SETTINGS.screenMargin, statusBarHeight);
+  if (magnusReader) marginBottom += magnus::READER_GAP;
 
   const uint16_t viewportWidth = renderer.getScreenWidth() - marginLeft - marginRight;
   const uint16_t viewportHeight = renderer.getScreenHeight() - marginTop - marginBottom;

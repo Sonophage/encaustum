@@ -53,6 +53,7 @@ constexpr int RULE = 2;        // section / header rule thickness
 constexpr int HAIR = 1;        // hairline divider thickness
 constexpr int GAP = 12;        // standard vertical gap
 constexpr int READER_TOP = 30; // reader page top-strip height (clock · case no. · battery)
+constexpr int READER_GAP = 22; // breathing room between the strip/footer rules and the body text
 
 // ── Type roles (all UNCOMPRESSED tables — compressed garbles on this build) ──
 constexpr int FONT_DISPLAY = EBGARAMOND_18_FONT_ID;  // hero numerals / splash title (24pt too costly in flash)
