@@ -190,8 +190,11 @@ void HomeActivity::renderMagnus() {
       magnus::eyebrow(renderer, MH_PAD, sy, "FROM THE STACKS");
     }
     sy += 20;
-    const int titleLineH = renderer.getLineHeight(magnus::FONT_TITLE);
-    const int chromeLineH = renderer.getLineHeight(magnus::FONT_CHROME);
+    // Fixed in-row offsets — FONT_TITLE's reported line height (~40px) is larger than the
+    // glyph cap, so positioning the fonds line by titleLineH pushed it outside the 60px
+    // selection fill (invisible as white-on-white when the row was selected).
+    constexpr int MH_TITLE_Y = 7;   // title top within the row
+    constexpr int MH_SUB_Y = 34;    // fonds line top within the row
     for (int i = 1; i <= recentCount; i++) {
       const RecentBook& b = recentBooks[i];
       const int rowY = sy + (i - 1) * MH_STACK_ROW;
@@ -208,15 +211,14 @@ void HomeActivity::renderMagnus() {
       const int pw = renderer.getTextWidth(magnus::FONT_CHROME, pct);
       const int titleW = sw - 2 * MH_PAD - pw - 16;
 
-      // title (serif)
-      const int titleY = rowY + 9;
+      // title (serif) + percent aligned to it
       auto t = renderer.truncatedText(magnus::FONT_TITLE, b.title.c_str(), titleW, EpdFontFamily::REGULAR);
-      renderer.drawText(magnus::FONT_TITLE, MH_PAD, titleY, t.c_str(), !sel, EpdFontFamily::REGULAR);
-      renderer.drawText(magnus::FONT_CHROME, sw - MH_PAD - pw, titleY + (titleLineH - chromeLineH) / 2, pct, !sel);
+      renderer.drawText(magnus::FONT_TITLE, MH_PAD, rowY + MH_TITLE_Y, t.c_str(), !sel, EpdFontFamily::REGULAR);
+      renderer.drawText(magnus::FONT_CHROME, sw - MH_PAD - pw, rowY + MH_TITLE_Y + 4, pct, !sel);
 
       // fonds line (mono): "MAG-XXXXXXX · THE SPIRAL"
       std::string sub = bookCode(b.path) + "  \xC2\xB7  " + fondsFor(b.path);
-      renderer.drawText(magnus::FONT_CHROME, MH_PAD, titleY + titleLineH + 1, sub.c_str(), !sel);
+      renderer.drawText(magnus::FONT_CHROME, MH_PAD, rowY + MH_SUB_Y, sub.c_str(), !sel);
 
       // dashed divider beneath unselected rows
       if (!sel) magnus::dashed(renderer, MH_PAD, rowY + MH_STACK_ROW - 1, sw - 2 * MH_PAD);

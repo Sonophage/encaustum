@@ -247,9 +247,16 @@ void ReadingStatsActivity::renderMagnus() {
   {
     const int gap = 12;
     const int cardW = (sw - 2 * PAD - 2 * gap) / 3;
-    const int cardH = 60;
-    char a[24];
-    StringUtils::formatReadingDuration(a, sizeof(a), READ_STATS.totalReadSeconds);
+    const int cardH = 62;
+    // Compact duration ("3h 12m") so the value fits a card; the long form overflowed.
+    char a[16];
+    {
+      const uint32_t mins = READ_STATS.totalReadSeconds / 60;
+      if (mins >= 60)
+        snprintf(a, sizeof(a), "%uh %um", (unsigned)(mins / 60), (unsigned)(mins % 60));
+      else
+        snprintf(a, sizeof(a), "%um", (unsigned)mins);
+    }
     char b[16];
     snprintf(b, sizeof(b), "%u", (unsigned)READ_STATS.totalSessions);
     char c[16];
@@ -259,9 +266,10 @@ void ReadingStatsActivity::renderMagnus() {
     for (int i = 0; i < 3; i++) {
       const int cx = PAD + i * (cardW + gap);
       magnus::frame(renderer, Rect{cx, y, cardW, cardH}, 1);
-      const int vwi = renderer.getTextWidth(magnus::FONT_TITLE, vals[i]);
-      renderer.drawText(magnus::FONT_TITLE, cx + (cardW - vwi) / 2, y + 12, vals[i], true, EpdFontFamily::REGULAR);
-      magnus::centerTracked(renderer, magnus::FONT_CHROME, cx + cardW / 2, y + cardH - 16, labs[i], 1);
+      auto vt = renderer.truncatedText(magnus::FONT_TITLE, vals[i], cardW - 10, EpdFontFamily::REGULAR);
+      const int vwi = renderer.getTextWidth(magnus::FONT_TITLE, vt.c_str());
+      renderer.drawText(magnus::FONT_TITLE, cx + (cardW - vwi) / 2, y + 7, vt.c_str(), true, EpdFontFamily::REGULAR);
+      magnus::centerTracked(renderer, magnus::FONT_CHROME, cx + cardW / 2, y + cardH - 15, labs[i], 1);
     }
     y += cardH + 18;
   }
@@ -270,10 +278,10 @@ void ReadingStatsActivity::renderMagnus() {
   magnus::eyebrow(renderer, PAD, y, "THE STACKS \xC2\xB7 RECENTLY READ");
   y += 22;
 
-  // footer geometry (pinned to bottom)
-  const int footerH = 54;
-  const int footerTop = sh - footerH;
-  const int listMaxY = footerTop - 14;
+  // footer geometry — sits ABOVE the button-hint bar (else they collide/clip)
+  const int footerH = 50;
+  const int footerTop = sh - MagnusMetrics::values.buttonHintsHeight - footerH;
+  const int listMaxY = footerTop - 12;
 
   const auto& allBooks = BOOK_STATS.getBooks();
   int catalogued = (int)allBooks.size();
