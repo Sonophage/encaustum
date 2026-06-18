@@ -116,13 +116,14 @@ void EpubReaderChapterSelectionActivity::render(RenderLock&&) {
   const EpdFontFamily::Style titleStyle = mag ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
   const int itemFont = mag ? magnus::FONT_BODY : UI_10_FONT_ID;
 
-  // Header (+ Magnus eyebrow + rule)
+  // Header (+ Magnus eyebrow + rule). Garamond's line box is tall — keep the title clear
+  // of the eyebrow above and the rule below.
   if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "CONTENTS");
-  const int titleY = (mag ? 22 : 15) + contentY;
+  const int titleY = (mag ? 26 : 15) + contentY;
   const int titleX =
       contentX + (contentWidth - renderer.getTextWidth(titleFont, tr(STR_SELECT_CHAPTER), titleStyle)) / 2;
   renderer.drawText(titleFont, titleX, titleY, tr(STR_SELECT_CHAPTER), true, titleStyle);
-  if (mag) magnus::rule(renderer, contentX, 52 + contentY, contentWidth);
+  if (mag) magnus::rule(renderer, contentX, 56 + contentY, contentWidth);
 
   const auto pageStartIndex = selectorIndex / pageItems * pageItems;
   // Highlight only the content area, not the hint gutters.

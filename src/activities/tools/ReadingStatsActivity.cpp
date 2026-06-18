@@ -278,9 +278,10 @@ void ReadingStatsActivity::renderMagnus() {
   magnus::eyebrow(renderer, PAD, y, "THE STACKS \xC2\xB7 RECENTLY READ");
   y += 22;
 
-  // footer geometry — sits ABOVE the button-hint bar (else they collide/clip)
+  // footer geometry — sits ABOVE the button-hint bar with a clear gap (the hint bar also
+  // draws a 2px rule above itself, so leave headroom or labels clip into it).
   const int footerH = 50;
-  const int footerTop = sh - MagnusMetrics::values.buttonHintsHeight - footerH;
+  const int footerTop = sh - MagnusMetrics::values.buttonHintsHeight - footerH - 12;
   const int listMaxY = footerTop - 12;
 
   const auto& allBooks = BOOK_STATS.getBooks();

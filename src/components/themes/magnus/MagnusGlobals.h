@@ -107,12 +107,12 @@ inline int utf8Step(unsigned char c) {
   return 1;
 }
 
-// Single-glyph advance. Fonts report a lone space as ~0 wide (word spacing is added only in
-// string context), so substitute a representative glyph width to keep tracked words apart.
+// Single-glyph advance. Fonts measure a lone space inconsistently (0 for SMALL, a tiny
+// value for some Courier glyphs), which collapses word gaps in tracked small-caps. Force
+// every space to a representative glyph width so words stay apart in any font.
 inline int glyphAdvance(const GfxRenderer& r, int fontId, const char* glyph, EpdFontFamily::Style st) {
-  int w = r.getTextWidth(fontId, glyph, st);
-  if (w == 0 && (unsigned char)glyph[0] <= ' ') w = r.getTextWidth(fontId, "n", st);
-  return w;
+  if (glyph[0] == ' ' && glyph[1] == '\0') return r.getTextWidth(fontId, "n", st);
+  return r.getTextWidth(fontId, glyph, st);
 }
 
 // Measure the advance width of `s` rendered with per-glyph `track`.

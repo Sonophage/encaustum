@@ -183,9 +183,10 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   const int subFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
   const int valFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
 
-  // Header: book title centered (+ Magnus eyebrow)
+  // Header: book title centered (+ Magnus eyebrow). Garamond's line box is tall, so the
+  // title/eyebrow/subtitle need more vertical separation than the stock UI fonts.
   if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "READING MENU");
-  const int titleY = (mag ? 22 : 15) + contentY;
+  const int titleY = (mag ? 26 : 15) + contentY;
   const std::string truncTitle =
       renderer.truncatedText(titleFont, title.c_str(), contentWidth - 40, titleStyle);
   const int titleX =
@@ -200,12 +201,12 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   } else {
     snprintf(subtitle, sizeof(subtitle), "%d%%", bookProgressPercent);
   }
-  const int subY = (mag ? 50 : 42) + contentY;
+  const int subY = (mag ? 60 : 42) + contentY;
   const int subW = renderer.getTextWidth(subFont, subtitle);
   renderer.drawText(subFont, contentX + (contentWidth - subW) / 2, subY, subtitle, true);
 
   // Sectioned list
-  int y = (mag ? 76 : 64) + contentY;
+  int y = (mag ? 86 : 64) + contentY;
   if (mag) magnus::rule(renderer, contentX, y - 8, contentWidth);
   constexpr int lineHeight = 34;
   constexpr int sectionHeaderH = 26;
