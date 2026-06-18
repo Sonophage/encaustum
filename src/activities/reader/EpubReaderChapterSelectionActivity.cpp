@@ -21,7 +21,9 @@ int EpubReaderChapterSelectionActivity::getPageItems() const {
   // Reserve vertical space so list items do not collide with the hints.
   const bool isPortraitInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
   const int hintGutterHeight = isPortraitInverted ? 50 : 0;
-  const int startY = 60 + hintGutterHeight;
+  // Magnus needs a taller header band (eyebrow + tall Garamond title) than the stock layout.
+  const int headerH = (SETTINGS.uiTheme == CrossPointSettings::MAGNUS) ? 84 : 60;
+  const int startY = headerH + hintGutterHeight;
   const int availableHeight = screenHeight - startY - lineHeight;
   // Clamp to at least one item to avoid division by zero and empty paging.
   return std::max(1, availableHeight / lineHeight);
@@ -116,23 +118,29 @@ void EpubReaderChapterSelectionActivity::render(RenderLock&&) {
   const EpdFontFamily::Style titleStyle = mag ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
   const int itemFont = mag ? magnus::FONT_BODY : UI_10_FONT_ID;
 
-  // Header (+ Magnus eyebrow + rule). Garamond's line box is tall — keep the title clear
-  // of the eyebrow above and the rule below.
-  if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "CONTENTS");
-  const int titleY = (mag ? 26 : 15) + contentY;
-  const int titleX =
-      contentX + (contentWidth - renderer.getTextWidth(titleFont, tr(STR_SELECT_CHAPTER), titleStyle)) / 2;
-  renderer.drawText(titleFont, titleX, titleY, tr(STR_SELECT_CHAPTER), true, titleStyle);
-  if (mag) magnus::rule(renderer, contentX, 56 + contentY, contentWidth);
+  // Header (+ Magnus eyebrow + rule). Garamond's line box is tall, so the Magnus header band
+  // is 84px (matches getPageItems) with generous spacing; stock keeps its 60px / y=15 layout.
+  const int listBase = (mag ? 84 : 60) + contentY;
+  if (mag) {
+    magnus::eyebrow(renderer, contentX + 14, contentY + 8, "CONTENTS");
+    const int titleX =
+        contentX + (contentWidth - renderer.getTextWidth(titleFont, tr(STR_SELECT_CHAPTER), titleStyle)) / 2;
+    renderer.drawText(titleFont, titleX, contentY + 36, tr(STR_SELECT_CHAPTER), true, titleStyle);
+    magnus::rule(renderer, contentX, listBase - 6, contentWidth);
+  } else {
+    const int titleX =
+        contentX + (contentWidth - renderer.getTextWidth(titleFont, tr(STR_SELECT_CHAPTER), titleStyle)) / 2;
+    renderer.drawText(titleFont, titleX, 15 + contentY, tr(STR_SELECT_CHAPTER), true, titleStyle);
+  }
 
   const auto pageStartIndex = selectorIndex / pageItems * pageItems;
   // Highlight only the content area, not the hint gutters.
-  renderer.fillRect(contentX, 60 + contentY + (selectorIndex % pageItems) * 30 - 2, contentWidth - 1, 30);
+  renderer.fillRect(contentX, listBase + (selectorIndex % pageItems) * 30 - 2, contentWidth - 1, 30);
 
   for (int i = 0; i < pageItems; i++) {
     int itemIndex = pageStartIndex + i;
     if (itemIndex >= totalItems) break;
-    const int displayY = 60 + contentY + i * 30;
+    const int displayY = listBase + i * 30;
     const bool isSelected = (itemIndex == selectorIndex);
 
     auto item = epub->getTocItem(itemIndex);

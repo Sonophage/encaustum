@@ -247,7 +247,7 @@ void ReadingStatsActivity::renderMagnus() {
   {
     const int gap = 12;
     const int cardW = (sw - 2 * PAD - 2 * gap) / 3;
-    const int cardH = 62;
+    const int cardH = 68;
     // Compact duration ("3h 12m") so the value fits a card; the long form overflowed.
     char a[16];
     {
@@ -268,8 +268,8 @@ void ReadingStatsActivity::renderMagnus() {
       magnus::frame(renderer, Rect{cx, y, cardW, cardH}, 1);
       auto vt = renderer.truncatedText(magnus::FONT_TITLE, vals[i], cardW - 10, EpdFontFamily::REGULAR);
       const int vwi = renderer.getTextWidth(magnus::FONT_TITLE, vt.c_str());
-      renderer.drawText(magnus::FONT_TITLE, cx + (cardW - vwi) / 2, y + 7, vt.c_str(), true, EpdFontFamily::REGULAR);
-      magnus::centerTracked(renderer, magnus::FONT_CHROME, cx + cardW / 2, y + cardH - 15, labs[i], 1);
+      renderer.drawText(magnus::FONT_TITLE, cx + (cardW - vwi) / 2, y + 8, vt.c_str(), true, EpdFontFamily::REGULAR);
+      magnus::centerTracked(renderer, magnus::FONT_CHROME, cx + cardW / 2, y + cardH - 16, labs[i], 1);
     }
     y += cardH + 18;
   }

@@ -183,10 +183,24 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   const int subFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
   const int valFont = mag ? magnus::FONT_CHROME : UI_10_FONT_ID;
 
-  // Header: book title centered (+ Magnus eyebrow). Garamond's line box is tall, so the
-  // title/eyebrow/subtitle need more vertical separation than the stock UI fonts.
-  if (mag) magnus::eyebrow(renderer, contentX + 14, 8 + contentY, "READING MENU");
-  const int titleY = (mag ? 26 : 15) + contentY;
+  // Header. Magnus stacks each element by its real line height (Garamond's line box is much
+  // taller than the stock UI font, so fixed offsets collided); stock keeps its fixed offsets.
+  int titleY, subY, listY;
+  if (mag) {
+    int hy = contentY + 6;
+    magnus::eyebrow(renderer, contentX + 14, hy, "READING MENU");
+    hy += renderer.getLineHeight(magnus::FONT_EYEBROW) + 2;
+    titleY = hy;
+    hy += renderer.getLineHeight(titleFont);
+    subY = hy;
+    hy += renderer.getLineHeight(subFont) + 10;
+    listY = hy;
+  } else {
+    titleY = 15 + contentY;
+    subY = 42 + contentY;
+    listY = 64 + contentY;
+  }
+
   const std::string truncTitle =
       renderer.truncatedText(titleFont, title.c_str(), contentWidth - 40, titleStyle);
   const int titleX =
@@ -201,12 +215,11 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
   } else {
     snprintf(subtitle, sizeof(subtitle), "%d%%", bookProgressPercent);
   }
-  const int subY = (mag ? 60 : 42) + contentY;
   const int subW = renderer.getTextWidth(subFont, subtitle);
   renderer.drawText(subFont, contentX + (contentWidth - subW) / 2, subY, subtitle, true);
 
   // Sectioned list
-  int y = (mag ? 86 : 64) + contentY;
+  int y = listY;
   if (mag) magnus::rule(renderer, contentX, y - 8, contentWidth);
   constexpr int lineHeight = 34;
   constexpr int sectionHeaderH = 26;
