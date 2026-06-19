@@ -73,6 +73,16 @@ void ReadingStatsActivity::render(RenderLock&&) {
   char totalBuf[32];
   StringUtils::formatReadingDuration(totalBuf, sizeof(totalBuf), READ_STATS.totalReadSeconds);
   renderer.drawText(UI_10_FONT_ID, MARGIN, y, totalBuf, true, EpdFontFamily::BOLD);
+  {
+    const float ppm = READ_STATS.totalReadSeconds > 0
+        ? (READ_STATS.totalPagesTurned * 60.0f / READ_STATS.totalReadSeconds)
+        : 0.0f;
+    char paceBuf[44];
+    snprintf(paceBuf, sizeof(paceBuf), "%u pages today  \xC2\xB7  %.1f pg/min",
+             (unsigned)READ_STATS.pagesToday, ppm);
+    const int pw = renderer.getTextWidth(SMALL_FONT_ID, paceBuf);
+    renderer.drawText(SMALL_FONT_ID, pageWidth - MARGIN - pw, y + (lhUi10 - lhSmall) / 2, paceBuf);
+  }
   y += lhUi10 + 14;
   renderer.fillRect(sepMargin, y, sepW, 1);
   y += 14;
@@ -187,9 +197,9 @@ void ReadingStatsActivity::render(RenderLock&&) {
 }
 
 // ── Magnus "Archivist's Record" ────────────────────────────────────────────────
-// Uses only tracked data (today, streak, totals, sessions, finished, per-book recents).
-// The mockup's weekly chart / pages-today / words-min aren't recorded, so they're omitted
-// rather than fabricated.
+// Surfaces tracked data: today + pages-today + all-time pace, a seven-day reading
+// chart, totals/sessions/finished, and per-book recents. Reading "speed" is
+// pages-per-minute (pages turned over reading time); word counts aren't tracked.
 void ReadingStatsActivity::renderMagnus() {
   const int sw = renderer.getScreenWidth();
   const int sh = renderer.getScreenHeight();
@@ -239,9 +249,53 @@ void ReadingStatsActivity::renderMagnus() {
     const int vw = renderer.getTextWidth(magnus::FONT_DISPLAY, vigil);
     renderer.drawText(magnus::FONT_DISPLAY, sw - PAD - vw, y, vigil, true, EpdFontFamily::REGULAR);
   }
-  y += renderer.getLineHeight(magnus::FONT_DISPLAY) + 14;
+  y += renderer.getLineHeight(magnus::FONT_DISPLAY) + 2;
+  // pages today + all-time pace (pages per minute)
+  {
+    const float ppm = READ_STATS.totalReadSeconds > 0
+        ? (READ_STATS.totalPagesTurned * 60.0f / READ_STATS.totalReadSeconds)
+        : 0.0f;
+    char cap[56];
+    snprintf(cap, sizeof(cap), "%u PAGES TODAY  \xC2\xB7  %.1f PAGES/MIN",
+             (unsigned)READ_STATS.pagesToday, ppm);
+    magnus::tracked(renderer, magnus::FONT_CHROME, PAD, y, cap, 1);
+  }
+  y += 18;
   magnus::hairline(renderer, PAD, y, sw - 2 * PAD);
   y += 16;
+
+  // THIS WEEK — seven daily reading-time bars (today on the right, drawn solid)
+  magnus::eyebrow(renderer, PAD, y, "THIS WEEK");
+  y += 18;
+  {
+    constexpr int N = 7;
+    const int chartH = 30;
+    const int gap = 6;
+    const int avail = sw - 2 * PAD;
+    const int barW = (avail - (N - 1) * gap) / N;
+    const int32_t today = ReadingStats::currentDayNumber();
+    uint32_t vals[N] = {};
+    uint32_t maxV = 1;
+    for (int i = 0; i < N; i++) {
+      uint32_t v = 0;
+      if (today >= 0) {
+        const int32_t d = today - (N - 1) + i;
+        if (d >= 0) v = READ_STATS.dailySeconds[d % 7];
+      }
+      vals[i] = v;
+      if (v > maxV) maxV = v;
+    }
+    const int baseY = y + chartH;
+    for (int i = 0; i < N; i++) {
+      const int bx = PAD + i * (barW + gap);
+      int bh = static_cast<int>(static_cast<uint64_t>(vals[i]) * chartH / maxV);
+      if (vals[i] > 0 && bh < 2) bh = 2;
+      magnus::hairline(renderer, bx, baseY, barW);  // baseline tick
+      if (bh > 0) renderer.fillRect(bx, baseY - bh, barW, bh);
+      if (i == N - 1) renderer.fillRect(bx, baseY + 3, barW, 2);  // underline today
+    }
+    y = baseY + 16;
+  }
 
   // three framed cards: ALL TIME / SESSIONS / FINISHED
   {

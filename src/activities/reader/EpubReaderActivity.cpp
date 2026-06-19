@@ -796,6 +796,7 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
 
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   if (isForwardTurn) {
+    READ_STATS.recordPageTurn();
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
     } else {

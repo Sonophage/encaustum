@@ -10,15 +10,35 @@
 #include <ctime>
 
 namespace {
-constexpr uint8_t STATS_FILE_VERSION = 2;
+constexpr uint8_t STATS_FILE_VERSION = 3;
 constexpr char STATS_FILE[] = "/.crosspoint/reading_stats.bin";
+constexpr time_t MIN_VALID_TIME = 1704067200;  // 2024-01-01 00:00:00 UTC
 }  // namespace
 
 ReadingStats ReadingStats::instance;
 
+int32_t ReadingStats::currentDayNumber() {
+  time_t now = time(nullptr);
+  if (now < MIN_VALID_TIME) return -1;
+  struct tm tmv = {};
+  localtime_r(&now, &tmv);
+  // Anchor at local noon so the day number is stable regardless of DST shifts.
+  tmv.tm_hour = 12;
+  tmv.tm_min = 0;
+  tmv.tm_sec = 0;
+  time_t noon = mktime(&tmv);
+  if (noon <= 0) return -1;
+  return static_cast<int32_t>(noon / 86400);
+}
+
 void ReadingStats::startSession() {
   sessionStartTime = time(nullptr);
   sessionActive = true;
+  sessionPages = 0;
+}
+
+void ReadingStats::recordPageTurn() {
+  if (sessionActive) sessionPages++;
 }
 
 void ReadingStats::endSession(const char* title, uint8_t progress, const char* bookPath) {
@@ -26,7 +46,6 @@ void ReadingStats::endSession(const char* title, uint8_t progress, const char* b
 
   // Check for day rollover; reset today's counter and update streak.
   // Only do this when we have a valid wall-clock time (NTP synced, >= 2024).
-  constexpr time_t MIN_VALID_TIME = 1704067200;  // 2024-01-01 00:00:00 UTC
   time_t now = time(nullptr);
   struct tm timeinfo = {};
   localtime_r(&now, &timeinfo);
@@ -70,6 +89,27 @@ void ReadingStats::endSession(const char* title, uint8_t progress, const char* b
   totalReadSeconds += elapsedSecs;
   totalSessions++;
 
+  // Weekly history ring + pages-today rollover, keyed by local day number.
+  const int32_t curDayNum = currentDayNumber();
+  if (curDayNum >= 0) {
+    if (lastDayNumber < 0) {
+      lastDayNumber = curDayNum;
+    } else if (curDayNum != lastDayNumber) {
+      // Clear the ring slots for each day that elapsed since the last activity
+      // (capped at 7 = the whole ring, which also covers backwards clock moves).
+      int32_t gap = curDayNum - lastDayNumber;
+      if (gap < 0 || gap > 7) gap = 7;
+      for (int32_t d = 1; d <= gap; d++) {
+        dailySeconds[(lastDayNumber + d) % 7] = 0;
+      }
+      pagesToday = 0;
+      lastDayNumber = curDayNum;
+    }
+    dailySeconds[curDayNum % 7] += elapsedSecs;
+  }
+  pagesToday += sessionPages;
+  totalPagesTurned += sessionPages;
+
   // Track book completion
   uint8_t prevProgress = lastBookProgress;
   if (title && title[0] != '\0') {
@@ -82,6 +122,7 @@ void ReadingStats::endSession(const char* title, uint8_t progress, const char* b
   }
 
   sessionActive = false;
+  sessionPages = 0;
   saveToFile();
 
   // Update per-book stats if path was provided
@@ -110,6 +151,11 @@ bool ReadingStats::saveToFile() const {
   serialization::writePod(file, booksFinished);
   serialization::writePod(file, currentStreak);
   serialization::writePod(file, longestStreak);
+  // v3 extended fields
+  serialization::writePod(file, totalPagesTurned);
+  serialization::writePod(file, pagesToday);
+  for (int i = 0; i < 7; i++) serialization::writePod(file, dailySeconds[i]);
+  serialization::writePod(file, lastDayNumber);
   file.close();
   return true;
 }
@@ -121,7 +167,7 @@ bool ReadingStats::loadFromFile() {
   }
   uint8_t version;
   serialization::readPod(file, version);
-  if (version != 1 && version != STATS_FILE_VERSION) {
+  if (version == 0 || version > STATS_FILE_VERSION) {
     LOG_ERR("RST", "Unknown reading_stats.bin version %u", version);
     file.close();
     return false;
@@ -140,8 +186,15 @@ bool ReadingStats::loadFromFile() {
     serialization::readPod(file, currentStreak);
     serialization::readPod(file, longestStreak);
   }
+  // v3 extended fields (defaults if upgrading from v1/v2)
+  if (version >= 3) {
+    serialization::readPod(file, totalPagesTurned);
+    serialization::readPod(file, pagesToday);
+    for (int i = 0; i < 7; i++) serialization::readPod(file, dailySeconds[i]);
+    serialization::readPod(file, lastDayNumber);
+  }
   file.close();
-  // Re-save as v2 if loaded v1
+  // Re-save in the current format if loaded an older version
   if (version < STATS_FILE_VERSION) saveToFile();
 
   // Load per-book stats alongside global stats
