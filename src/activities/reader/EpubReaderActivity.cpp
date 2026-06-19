@@ -31,10 +31,15 @@
 #ifdef ENABLE_BLE
 #include "activities/settings/BluetoothSettingsActivity.h"
 #endif
+#include "DictionaryIndexBuildActivity.h"
+#include "DictionaryWordSelectActivity.h"
+#include "LookedUpWordsActivity.h"
 #include "ReadingStats.h"
 #include "StarredPagesActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/Dictionary.h"
+#include "util/LookupHistory.h"
 #include "util/ScreenshotUtil.h"
 
 namespace {
@@ -52,6 +57,20 @@ int clampPercent(int percent) {
     return 100;
   }
   return percent;
+}
+
+// Reader content margins for the dictionary word-select overlay so its word
+// boxes line up with the page the reader renders. Mirrors the live render
+// path's top/left margins (getOrientedViewableTRBL + screenMargin + the Magnus
+// top status-bar reservation in portrait).
+void computeReaderOverlayMargins(GfxRenderer& renderer, int& marginLeft, int& marginTop) {
+  int top, right, bottom, left;
+  renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
+  marginLeft = left + SETTINGS.screenMargin;
+  marginTop = top + SETTINGS.screenMargin;
+  const bool magnusReader = SETTINGS.uiTheme == CrossPointSettings::MAGNUS &&
+                            renderer.getOrientation() == GfxRenderer::Orientation::Portrait;
+  if (magnusReader) marginTop += magnus::READER_TOP + magnus::READER_GAP;
 }
 
 }  // namespace
@@ -297,10 +316,15 @@ void EpubReaderActivity::loop() {
     // Capture font state before opening menu to detect changes requiring re-layout
     const uint8_t prevFontFamily = SETTINGS.fontFamily;
     const uint8_t prevFontSize = SETTINGS.fontSize;
+    // Dictionary lookup gating: the StarDict files must exist on the SD card,
+    // and the per-book lookup history must be non-empty for the history entry.
+    const bool hasDictionary = Dictionary::exists();
+    const bool hasLookupHistory = hasDictionary && epub && LookupHistory::hasHistory(epub->getCachePath());
     startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                                renderer, mappedInput, menuTitle, currentPage, totalPages, bookProgressPercent,
                                SETTINGS.orientation, !currentPageFootnotes.empty(), !bookmarkStore.isEmpty(),
-                               SETTINGS.autoPageTurnEnabled ? SETTINGS.autoPageTurnSpeed : 0),
+                               SETTINGS.autoPageTurnEnabled ? SETTINGS.autoPageTurnSpeed : 0, hasDictionary,
+                               hasLookupHistory),
                            [this, prevFontFamily, prevFontSize](const ActivityResult& result) {
                              // Always apply orientation change even if the menu was cancelled
                              const auto& menu = std::get<MenuResult>(result.data);
@@ -510,6 +534,27 @@ void EpubReaderActivity::openStarredPages() {
       });
 }
 
+void EpubReaderActivity::launchDictionaryWordSelect() {
+  if (!epub || !section || section->currentPage < 0 || section->currentPage >= section->pageCount) {
+    requestUpdate();
+    return;
+  }
+  auto page = section->loadPageFromSectionFile();
+  if (!page) {
+    requestUpdate();
+    return;
+  }
+  // Match the live render path's reader content margins so the overlay's
+  // word boxes line up with the page the user sees.
+  int marginLeft, marginTop;
+  computeReaderOverlayMargins(renderer, marginLeft, marginTop);
+  startActivityForResult(
+      std::make_unique<DictionaryWordSelectActivity>(renderer, mappedInput, std::move(page),
+                                                     SETTINGS.getReaderFontId(), marginLeft, marginTop,
+                                                     epub->getCachePath(), SETTINGS.orientation, std::string{}),
+      [this](const ActivityResult& /*result*/) { requestUpdate(); });
+}
+
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
   switch (action) {
     case EpubReaderMenuActivity::MenuAction::FONT_FAMILY: {
@@ -566,6 +611,39 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                }
                                requestUpdate();
                              });
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::LOOKUP: {
+      // Open the word-selection overlay over the current page. WordSelect owns
+      // the loaded Page and dives into DictionaryDefinitionActivity itself when
+      // a word is confirmed, so we only need to launch it and resume on return.
+      // On the very first lookup (no cached sparse index on disk) run the
+      // one-time, user-visible index-build scan first so the device isn't
+      // silently busy inside the first lookup() call.
+      if (epub && section && section->currentPage >= 0 && section->currentPage < section->pageCount) {
+        if (!Dictionary::hasCachedIndex() && !Dictionary::isIndexReady()) {
+          startActivityForResult(
+              std::make_unique<DictionaryIndexBuildActivity>(renderer, mappedInput),
+              [this](const ActivityResult& result) {
+                if (result.isCancelled) {
+                  requestUpdate();
+                  return;
+                }
+                launchDictionaryWordSelect();
+              });
+          break;
+        }
+        launchDictionaryWordSelect();
+        break;
+      }
+      // No page available — just close the menu.
+      requestUpdate();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::LOOKED_UP_WORDS: {
+      startActivityForResult(
+          std::make_unique<LookedUpWordsActivity>(renderer, mappedInput, epub ? epub->getCachePath() : std::string{}),
+          [this](const ActivityResult& /*result*/) { requestUpdate(); });
       break;
     }
     case EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT: {

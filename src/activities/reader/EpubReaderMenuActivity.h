@@ -14,6 +14,8 @@ class EpubReaderMenuActivity final : public Activity {
   enum class MenuAction {
     SELECT_CHAPTER,
     FOOTNOTES,
+    LOOKUP,
+    LOOKED_UP_WORDS,
     GO_TO_PERCENT,
     FONT_FAMILY,
     FONT_SIZE,
@@ -35,7 +37,8 @@ class EpubReaderMenuActivity final : public Activity {
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
                                   const uint8_t currentOrientation, const bool hasFootnotes,
-                                  const bool hasStarredPages, const uint8_t currentPageTurnOption = 0);
+                                  const bool hasStarredPages, const uint8_t currentPageTurnOption = 0,
+                                  const bool hasDictionary = false, const bool hasLookupHistory = false);
 
   void onEnter() override;
   void onExit() override;
@@ -56,8 +59,10 @@ class EpubReaderMenuActivity final : public Activity {
     int count;           // Number of items in this section
   };
 
-  static std::vector<MenuItem> buildMenuItems(bool hasFootnotes, bool hasStarredPages);
-  static std::vector<SectionInfo> buildSections(bool hasFootnotes, bool hasStarredPages);
+  static std::vector<MenuItem> buildMenuItems(bool hasFootnotes, bool hasStarredPages, bool hasDictionary,
+                                              bool hasLookupHistory);
+  static std::vector<SectionInfo> buildSections(bool hasFootnotes, bool hasStarredPages, bool hasDictionary,
+                                                bool hasLookupHistory);
 
   // Fixed menu layout built at construction time
   const std::vector<MenuItem> menuItems;

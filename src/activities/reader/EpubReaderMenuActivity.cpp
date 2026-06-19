@@ -18,10 +18,11 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasStarredPages,
-                                               const uint8_t currentPageTurnOption)
+                                               const uint8_t currentPageTurnOption, const bool hasDictionary,
+                                               const bool hasLookupHistory)
     : Activity("EpubReaderMenu", renderer, mappedInput),
-      menuItems(buildMenuItems(hasFootnotes, hasStarredPages)),
-      sections(buildSections(hasFootnotes, hasStarredPages)),
+      menuItems(buildMenuItems(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory)),
+      sections(buildSections(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory)),
       title(title),
       pendingOrientation(currentOrientation),
       selectedPageTurnOption(currentPageTurnOption),
@@ -30,9 +31,11 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
       bookProgressPercent(bookProgressPercent) {}
 
 std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes,
-                                                                                     bool hasStarredPages) {
+                                                                                     bool hasStarredPages,
+                                                                                     bool hasDictionary,
+                                                                                     bool hasLookupHistory) {
   std::vector<MenuItem> items;
-  items.reserve(13);
+  items.reserve(15);
 
   // NAVIGATION section
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
@@ -40,6 +43,10 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   if (hasFootnotes) items.push_back({MenuAction::FOOTNOTES, StrId::STR_FOOTNOTES});
   items.push_back({MenuAction::STAR_PAGE, StrId::STR_STAR_PAGE});
   if (hasStarredPages) items.push_back({MenuAction::STARRED_PAGES, StrId::STR_STARRED_PAGES});
+  // Dictionary lookup entry points: shown only when StarDict files are present
+  // on the SD card. The history list additionally requires a per-book lookups.txt.
+  if (hasDictionary) items.push_back({MenuAction::LOOKUP, StrId::STR_LOOKUP});
+  if (hasLookupHistory) items.push_back({MenuAction::LOOKED_UP_WORDS, StrId::STR_LOOKED_UP_WORDS});
 
   // DISPLAY section
   items.push_back({MenuAction::FONT_FAMILY, StrId::STR_FONT_FAMILY});
@@ -62,12 +69,15 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
 }
 
 std::vector<EpubReaderMenuActivity::SectionInfo> EpubReaderMenuActivity::buildSections(bool hasFootnotes,
-                                                                                       bool hasStarredPages) {
+                                                                                       bool hasStarredPages,
+                                                                                       bool hasDictionary,
+                                                                                       bool hasLookupHistory) {
   std::vector<SectionInfo> sects;
   int idx = 0;
 
-  // NAVIGATION: 3 fixed (chapter, go-to, star) + optional footnotes + optional starred pages
-  const int navCount = 3 + (hasFootnotes ? 1 : 0) + (hasStarredPages ? 1 : 0);
+  // NAVIGATION: 3 fixed (chapter, go-to, star) + optional footnotes + starred + dictionary entries
+  const int navCount = 3 + (hasFootnotes ? 1 : 0) + (hasStarredPages ? 1 : 0) + (hasDictionary ? 1 : 0) +
+                       (hasLookupHistory ? 1 : 0);
   sects.push_back({"NAVIGATION", idx, navCount});
   idx += navCount;
 
