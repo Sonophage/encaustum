@@ -18,6 +18,12 @@ class BookmarkStore {
     uint16_t spineIndex;
     uint16_t pageNumber;
     std::string snippet;  // First ~60 chars of text from the bookmarked page
+    // Highlight ("Bookmark a Line") support. When isHighlight is true, this
+    // record stores user-selected line/range text in `preview`, exported by
+    // "Export Highlights". Plain page bookmarks leave isHighlight=false and
+    // preview empty. (v3 on-disk addition; older files load as page bookmarks.)
+    bool isHighlight = false;
+    std::string preview;
   };
 
   // Load bookmark index from cache directory (compact: no snippets).
@@ -66,6 +72,18 @@ class BookmarkStore {
           f.seekCur(snippetLen);
         }
       }
+      // v3: read the highlight flag now (cheap, needed for isEmpty-style
+      // queries and to gate export) but defer the preview text to loadSnippets.
+      if (version >= 3) {
+        uint8_t isHighlight = 0;
+        if (f.read(&isHighlight, 1) == 1) {
+          bm.isHighlight = isHighlight != 0;
+        }
+        uint8_t previewLen = 0;
+        if (f.read(&previewLen, 1) == 1 && previewLen > 0) {
+          f.seekCur(previewLen);
+        }
+      }
       bookmarks.push_back(bm);
     }
 
@@ -108,6 +126,15 @@ class BookmarkStore {
       if (snippetLen > 0) {
         ok = ok && f.write(reinterpret_cast<const uint8_t*>(bm.snippet.c_str()), snippetLen) == snippetLen;
       }
+      // v3: write highlight flag + length-prefixed preview (capped).
+      const uint8_t isHighlight = bm.isHighlight ? 1 : 0;
+      ok = ok && writePodChecked(isHighlight);
+      const uint8_t previewLen =
+          static_cast<uint8_t>(std::min(bm.preview.size(), static_cast<size_t>(MAX_PREVIEW_LEN)));
+      ok = ok && writePodChecked(previewLen);
+      if (previewLen > 0) {
+        ok = ok && f.write(reinterpret_cast<const uint8_t*>(bm.preview.c_str()), previewLen) == previewLen;
+      }
     }
 
     ok = ok && f.close();
@@ -127,9 +154,27 @@ class BookmarkStore {
       dirty = true;
       return false;
     }
-    bookmarks.push_back({spineIndex, pageNumber, snippet.substr(0, MAX_SNIPPET_LEN)});
+    bookmarks.push_back({spineIndex, pageNumber, snippet.substr(0, MAX_SNIPPET_LEN), false, {}});
     dirty = true;
     return true;
+  }
+
+  // Add a highlight ("Bookmark a Line") record for the given page, carrying the
+  // user-selected line/range text as preview. Unlike toggle(), highlights are
+  // additive — multiple highlights may share a page — so this always appends.
+  // Returns false if the bookmark limit is reached.
+  bool addHighlight(uint16_t spineIndex, uint16_t pageNumber, const std::string& preview) {
+    if (bookmarks.size() >= MAX_BOOKMARKS) return false;
+    bookmarks.push_back({spineIndex, pageNumber, "", true, preview.substr(0, MAX_PREVIEW_LEN)});
+    dirty = true;
+    return true;
+  }
+
+  // True if any stored bookmark is a highlight (gates Export Highlights).
+  // The isHighlight flag is populated by load() from the compact index, so no
+  // snippet/preview load is needed here.
+  [[nodiscard]] bool hasHighlights() const {
+    return std::any_of(bookmarks.begin(), bookmarks.end(), [](const Bookmark& bm) { return bm.isHighlight; });
   }
 
   // Check if a page is starred (works on compact index, no snippet load needed).
@@ -149,9 +194,10 @@ class BookmarkStore {
   void markDirty() { dirty = true; }
 
  private:
-  static constexpr uint8_t FILE_VERSION = 2;  // v2: added snippet field
+  static constexpr uint8_t FILE_VERSION = 3;  // v2: snippet field; v3: highlight flag + preview
   static constexpr uint16_t MAX_BOOKMARKS = 1000;
   static constexpr uint8_t MAX_SNIPPET_LEN = 80;
+  static constexpr uint8_t MAX_PREVIEW_LEN = 160;  // matches word-select kPreviewMax
 
   std::vector<Bookmark> bookmarks;
   std::string basePath;
@@ -203,6 +249,26 @@ class BookmarkStore {
           }
         }
         if (snippetLen > toRead) f.seekCur(snippetLen - toRead);
+      }
+
+      // v3: highlight flag + length-prefixed preview text.
+      if (version >= 3) {
+        uint8_t isHighlight = 0;
+        if (f.read(&isHighlight, 1) == 1) {
+          bookmarks[i].isHighlight = isHighlight != 0;
+        }
+        uint8_t previewLen = 0;
+        if (f.read(&previewLen, 1) == 1 && previewLen > 0) {
+          char pbuf[MAX_PREVIEW_LEN + 1];
+          const uint8_t toRead = std::min(previewLen, static_cast<uint8_t>(MAX_PREVIEW_LEN));
+          if (f.read(reinterpret_cast<uint8_t*>(pbuf), toRead) == toRead) {
+            pbuf[toRead] = '\0';
+            if (bookmarks[i].preview.empty()) {
+              bookmarks[i].preview = pbuf;
+            }
+          }
+          if (previewLen > toRead) f.seekCur(previewLen - toRead);
+        }
       }
     }
 

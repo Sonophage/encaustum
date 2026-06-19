@@ -16,6 +16,8 @@ class EpubReaderMenuActivity final : public Activity {
     FOOTNOTES,
     LOOKUP,
     LOOKED_UP_WORDS,
+    BOOKMARK_LINE,
+    EXPORT_HIGHLIGHTS,
     GO_TO_PERCENT,
     FONT_FAMILY,
     FONT_SIZE,
@@ -38,7 +40,8 @@ class EpubReaderMenuActivity final : public Activity {
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
                                   const uint8_t currentOrientation, const bool hasFootnotes,
                                   const bool hasStarredPages, const uint8_t currentPageTurnOption = 0,
-                                  const bool hasDictionary = false, const bool hasLookupHistory = false);
+                                  const bool hasDictionary = false, const bool hasLookupHistory = false,
+                                  const bool hasHighlights = false);
 
   void onEnter() override;
   void onExit() override;
@@ -60,9 +63,9 @@ class EpubReaderMenuActivity final : public Activity {
   };
 
   static std::vector<MenuItem> buildMenuItems(bool hasFootnotes, bool hasStarredPages, bool hasDictionary,
-                                              bool hasLookupHistory);
+                                              bool hasLookupHistory, bool hasHighlights);
   static std::vector<SectionInfo> buildSections(bool hasFootnotes, bool hasStarredPages, bool hasDictionary,
-                                                bool hasLookupHistory);
+                                                bool hasLookupHistory, bool hasHighlights);
 
   // Fixed menu layout built at construction time
   const std::vector<MenuItem> menuItems;

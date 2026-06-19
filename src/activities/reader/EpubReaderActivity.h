@@ -68,6 +68,12 @@ class EpubReaderActivity final : public Activity {
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   // Loads the current page and launches the dictionary word-select overlay.
   void launchDictionaryWordSelect();
+  // Store a highlight ("Bookmark a Line") for the current page with the given
+  // selected-text preview, then show a brief feedback popup.
+  void addHighlightBookmark(const std::string& previewText);
+  // Dump every highlight bookmark for the current book to
+  // /highlights/<sanitized-book>.md as title/author/chapter headers + blockquotes.
+  void exportHighlightsToMarkdown();
   void applyOrientation(uint8_t orientation);
   void toggleAutoPageTurn(uint8_t selectedPageTurnOption);
   void pageTurn(bool isForwardTurn);

@@ -62,9 +62,23 @@ struct FilePathResult {
   std::string path;
 };
 
+// Result from DictionaryWordSelectActivity when invoked in a highlight mode
+// (the reused word-picker). startWordIndex and endWordIndex are positions
+// within the page's WordInfo vector (inclusive); previewText is the raw
+// concatenated text of the selected words, joined with single spaces and
+// truncated. isCancelled signals Back-out; the indices are valid otherwise.
+// endWordIndex < 0 with a valid startWordIndex is an anchor-only "hold" (the
+// in-page range start is held for a future cross-page flow). Lookup mode never
+// emits this. (Ported from CrossInk/CrumBLE.)
+struct HighlightRangeResult {
+  int startWordIndex = -1;
+  int endWordIndex = -1;
+  std::string previewText;
+};
+
 using ResultVariant = std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult,
                                    PageResult, SyncResult, NetworkModeResult, FootnoteResult, StarredPageResult,
-                                   FilePathResult>;
+                                   FilePathResult, HighlightRangeResult>;
 
 struct ActivityResult {
   bool isCancelled = false;

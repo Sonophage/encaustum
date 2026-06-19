@@ -18,7 +18,7 @@
 DictionaryWordSelectActivity::DictionaryWordSelectActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                            std::unique_ptr<Page> page, int fontId, int marginLeft,
                                                            int marginTop, std::string cachePath, uint8_t orientation,
-                                                           std::string nextPageFirstWord)
+                                                           std::string nextPageFirstWord, Mode mode)
     : Activity("DictionaryWordSelect", renderer, mappedInput),
       page(std::move(page)),
       fontId(fontId),
@@ -26,7 +26,8 @@ DictionaryWordSelectActivity::DictionaryWordSelectActivity(GfxRenderer& renderer
       marginTop(marginTop),
       cachePath(std::move(cachePath)),
       orientation(orientation),
-      nextPageFirstWord(std::move(nextPageFirstWord)) {}
+      nextPageFirstWord(std::move(nextPageFirstWord)),
+      mode_(mode) {}
 
 void DictionaryWordSelectActivity::onEnter() {
   Activity::onEnter();
@@ -247,16 +248,67 @@ void DictionaryWordSelectActivity::loop() {
       // No selectable word — ignore the press.
     } else {
       int selectedWordIdx = rows[currentRow].wordIndices[currentWordInRow];
-      std::string wordToLookup = words[selectedWordIdx].lookupText;
-      startActivityForResult(
-          std::make_unique<DictionaryDefinitionActivity>(renderer, mappedInput, wordToLookup, cachePath, fontId),
-          [this](const ActivityResult& /*result*/) { requestUpdate(); });
+
+      if (mode_ == Mode::Lookup) {
+        std::string wordToLookup = words[selectedWordIdx].lookupText;
+        startActivityForResult(
+            std::make_unique<DictionaryDefinitionActivity>(renderer, mappedInput, wordToLookup, cachePath, fontId),
+            [this](const ActivityResult& /*result*/) { requestUpdate(); });
+      } else if (mode_ == Mode::HighlightSingleWord) {
+        // One-tap mode for cross-page END pick. Capture some lead-in context
+        // BEFORE the picked word so the saved preview reads like a passage
+        // ending here rather than a lonely word.
+        ActivityResult result;
+        HighlightRangeResult hr;
+        hr.startWordIndex = selectedWordIdx;
+        hr.endWordIndex = selectedWordIdx;
+        const int leadIn = std::max(0, selectedWordIdx - 14);
+        hr.previewText = buildPreviewBetween(leadIn, selectedWordIdx);
+        result.data = hr;
+        setResult(std::move(result));
+        finish();
+        return;
+      } else {
+        // HighlightRange (same-page): first Confirm anchors the start;
+        // second Confirm finishes with the range. Anchor lives until exit.
+        if (highlightAnchorWordIdx_ < 0) {
+          highlightAnchorWordIdx_ = selectedWordIdx;
+          requestUpdate();
+        } else {
+          ActivityResult result;
+          HighlightRangeResult hr;
+          hr.startWordIndex = std::min(highlightAnchorWordIdx_, selectedWordIdx);
+          hr.endWordIndex = std::max(highlightAnchorWordIdx_, selectedWordIdx);
+          hr.previewText = buildPreviewBetween(hr.startWordIndex, hr.endWordIndex);
+          result.data = hr;
+          setResult(std::move(result));
+          finish();
+          return;
+        }
+      }
     }
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     ActivityResult result;
-    result.isCancelled = true;
+    // In HighlightRange mode with the anchor placed, Back means "hold the
+    // start for later" instead of cancel — emit a result with
+    // startWordIndex=anchor and endWordIndex=-1. The caller can store this
+    // as a pending highlight start. Lookup mode and pre-anchor
+    // HighlightRange still treat Back as cancel.
+    if (mode_ == Mode::HighlightRange && highlightAnchorWordIdx_ >= 0 &&
+        highlightAnchorWordIdx_ < static_cast<int>(words.size())) {
+      HighlightRangeResult hr;
+      hr.startWordIndex = highlightAnchorWordIdx_;
+      hr.endWordIndex = -1;  // signal: anchor only
+      // Capture a trailing-context snippet starting at the anchor so the
+      // held preview reads as a passage rather than a single word.
+      const int trailingEnd = std::min(static_cast<int>(words.size()) - 1, highlightAnchorWordIdx_ + 14);
+      hr.previewText = buildPreviewBetween(highlightAnchorWordIdx_, trailingEnd);
+      result.data = hr;
+    } else {
+      result.isCancelled = true;
+    }
     setResult(std::move(result));
     finish();
     return;
@@ -297,18 +349,90 @@ void DictionaryWordSelectActivity::render(RenderLock&&) {
       renderer.fillRect(boxX + boxWidth + 1, boxY - 3, 2, lineHeight + 8, true);
     };
 
-    drawSingleWordBox(selectedWordIdx);
-    if (words[selectedWordIdx].continuationIndex != -1) {
-      drawSingleWordBox(words[selectedWordIdx].continuationIndex);
-    }
-    if (words[selectedWordIdx].continuationOf != -1) {
-      drawSingleWordBox(words[selectedWordIdx].continuationOf);
+    // HighlightRange mode + anchor placed: render a filled black box behind
+    // every word in the inclusive range [anchor, cursor], then redraw each
+    // word in white over the box (reverse video). Skips continuation slots
+    // so hyphenated halves aren't double-stamped.
+    if (mode_ == Mode::HighlightRange && highlightAnchorWordIdx_ >= 0 &&
+        highlightAnchorWordIdx_ < static_cast<int>(words.size())) {
+      const int lo = std::min(highlightAnchorWordIdx_, selectedWordIdx);
+      const int hi = std::max(highlightAnchorWordIdx_, selectedWordIdx);
+      const int padX = 1;
+      const int padTop = 2;
+      const int padBot = 2;
+      // First pass: fill the inter-word gap on the same row so the selection
+      // reads as one continuous highlighted block instead of a series of
+      // word boxes with white gaps.
+      for (int i = lo; i < hi && i < static_cast<int>(words.size()) - 1; ++i) {
+        if (words[i].continuationOf != -1) continue;
+        if (words[i].rowIndex != words[i + 1].rowIndex) continue;
+        const int gapStart = words[i].screenX + words[i].width;
+        const int gapEnd = words[i + 1].screenX;
+        if (gapEnd > gapStart) {
+          renderer.fillRect(gapStart - padX, words[i].screenY - padTop, (gapEnd - gapStart) + padX * 2,
+                            lineHeight + padTop + padBot, true);
+        }
+      }
+      // Second pass: fill the words themselves and redraw in white.
+      for (int i = lo; i <= hi && i < static_cast<int>(words.size()); ++i) {
+        const WordInfo& w = words[i];
+        if (w.continuationOf != -1) continue;
+        renderer.fillRect(w.screenX - padX, w.screenY - padTop, w.width + padX * 2, lineHeight + padTop + padBot,
+                          true);
+        // black=false -> white text. Style defaults to REGULAR since we don't
+        // store per-word EpdFontFamily::Style in WordInfo yet.
+        renderer.drawText(fontId, w.screenX, w.screenY, w.text.c_str(), false);
+      }
+    } else {
+      drawSingleWordBox(selectedWordIdx);
+      if (words[selectedWordIdx].continuationIndex != -1) {
+        drawSingleWordBox(words[selectedWordIdx].continuationIndex);
+      }
+      if (words[selectedWordIdx].continuationOf != -1) {
+        drawSingleWordBox(words[selectedWordIdx].continuationOf);
+      }
     }
   }
 
-  const auto labels = mappedInput.mapLabels(tr(STR_CANCEL), tr(STR_LOOKUP), tr(STR_PREV), tr(STR_NEXT));
+  // Button hints differ by mode and state.
+  //   Lookup        : Cancel / Lookup /.../ Prev-Next
+  //   Range (pre-)  : Cancel / Start  /.../ Prev-Next
+  //   Range (held)  : Hold   / End    /.../ Prev-Next
+  //   SingleWord    : Cancel / End    /.../ Prev-Next
+  const char* btn1Label = tr(STR_CANCEL);
+  const char* btn2Label = tr(STR_LOOKUP);
+  if (mode_ == Mode::HighlightRange) {
+    btn2Label = (highlightAnchorWordIdx_ < 0) ? tr(STR_HIGHLIGHT_START) : tr(STR_HIGHLIGHT_END);
+    if (highlightAnchorWordIdx_ >= 0) btn1Label = tr(STR_HIGHLIGHT_HOLD);
+  } else if (mode_ == Mode::HighlightSingleWord) {
+    btn2Label = tr(STR_HIGHLIGHT_END);
+  }
+  const auto labels = mappedInput.mapLabels(btn1Label, btn2Label, tr(STR_PREV), tr(STR_NEXT));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+}
+
+std::string DictionaryWordSelectActivity::buildPreviewBetween(int a, int b) const {
+  const int lo = std::min(a, b);
+  const int hi = std::max(a, b);
+  if (lo < 0 || hi >= static_cast<int>(words.size())) return {};
+
+  std::string out;
+  out.reserve(kPreviewMax);
+  for (int i = lo; i <= hi; ++i) {
+    // Skip continuation halves so hyphenated words aren't duplicated.
+    if (words[i].continuationOf != -1) continue;
+    if (!out.empty()) out += ' ';
+    out += words[i].text;
+    // Cap early once the string would exceed storage (-1 for NUL, -3 for the
+    // ellipsis). Saves cycles on long ranges.
+    if (out.size() >= kPreviewMax - 4) break;
+  }
+  if (out.size() > kPreviewMax - 1) {
+    out.resize(kPreviewMax - 4);
+    out += "...";
+  }
+  return out;
 }
 
 void DictionaryWordSelectActivity::mergeHyphenatedWords() {

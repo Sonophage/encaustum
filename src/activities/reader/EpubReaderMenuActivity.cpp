@@ -19,10 +19,10 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
                                                const int bookProgressPercent, const uint8_t currentOrientation,
                                                const bool hasFootnotes, const bool hasStarredPages,
                                                const uint8_t currentPageTurnOption, const bool hasDictionary,
-                                               const bool hasLookupHistory)
+                                               const bool hasLookupHistory, const bool hasHighlights)
     : Activity("EpubReaderMenu", renderer, mappedInput),
-      menuItems(buildMenuItems(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory)),
-      sections(buildSections(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory)),
+      menuItems(buildMenuItems(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory, hasHighlights)),
+      sections(buildSections(hasFootnotes, hasStarredPages, hasDictionary, hasLookupHistory, hasHighlights)),
       title(title),
       pendingOrientation(currentOrientation),
       selectedPageTurnOption(currentPageTurnOption),
@@ -33,9 +33,10 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
 std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes,
                                                                                      bool hasStarredPages,
                                                                                      bool hasDictionary,
-                                                                                     bool hasLookupHistory) {
+                                                                                     bool hasLookupHistory,
+                                                                                     bool hasHighlights) {
   std::vector<MenuItem> items;
-  items.reserve(15);
+  items.reserve(17);
 
   // NAVIGATION section
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
@@ -47,6 +48,9 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   // on the SD card. The history list additionally requires a per-book lookups.txt.
   if (hasDictionary) items.push_back({MenuAction::LOOKUP, StrId::STR_LOOKUP});
   if (hasLookupHistory) items.push_back({MenuAction::LOOKED_UP_WORDS, StrId::STR_LOOKED_UP_WORDS});
+  // "Bookmark a Line" reuses the word-select overlay in highlight mode, which
+  // needs no dictionary — always available so highlighting works without one.
+  items.push_back({MenuAction::BOOKMARK_LINE, StrId::STR_BOOKMARK_LINE});
 
   // DISPLAY section
   items.push_back({MenuAction::FONT_FAMILY, StrId::STR_FONT_FAMILY});
@@ -56,6 +60,9 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   items.push_back({MenuAction::AUTO_PAGE_TURN_SPEED, StrId::STR_AUTO_TURN_PAGES_PER_MIN});
 
   // FEATURES section
+  // Export Highlights: shown only when the book has at least one highlight
+  // bookmark to dump.
+  if (hasHighlights) items.push_back({MenuAction::EXPORT_HIGHLIGHTS, StrId::STR_EXPORT_HIGHLIGHTS});
   items.push_back({MenuAction::SCREENSHOT, StrId::STR_SCREENSHOT_BUTTON});
   items.push_back({MenuAction::DISPLAY_QR, StrId::STR_DISPLAY_QR});
   items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
@@ -71,13 +78,15 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
 std::vector<EpubReaderMenuActivity::SectionInfo> EpubReaderMenuActivity::buildSections(bool hasFootnotes,
                                                                                        bool hasStarredPages,
                                                                                        bool hasDictionary,
-                                                                                       bool hasLookupHistory) {
+                                                                                       bool hasLookupHistory,
+                                                                                       bool hasHighlights) {
   std::vector<SectionInfo> sects;
   int idx = 0;
 
-  // NAVIGATION: 3 fixed (chapter, go-to, star) + optional footnotes + starred + dictionary entries
+  // NAVIGATION: 3 fixed (chapter, go-to, star) + optional footnotes + starred +
+  // dictionary lookup + lookup history + bookmark-a-line (always shown).
   const int navCount = 3 + (hasFootnotes ? 1 : 0) + (hasStarredPages ? 1 : 0) + (hasDictionary ? 1 : 0) +
-                       (hasLookupHistory ? 1 : 0);
+                       (hasLookupHistory ? 1 : 0) + 1;
   sects.push_back({"NAVIGATION", idx, navCount});
   idx += navCount;
 
@@ -85,8 +94,8 @@ std::vector<EpubReaderMenuActivity::SectionInfo> EpubReaderMenuActivity::buildSe
   sects.push_back({"DISPLAY", idx, 5});
   idx += 5;
 
-  // FEATURES: 5 base + optional BLE
-  int featureCount = 5;
+  // FEATURES: 5 base + optional export-highlights + optional BLE
+  int featureCount = 5 + (hasHighlights ? 1 : 0);
 #ifdef ENABLE_BLE
   featureCount++;
 #endif

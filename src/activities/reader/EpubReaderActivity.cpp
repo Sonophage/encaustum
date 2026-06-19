@@ -12,7 +12,10 @@
 
 #include <memory>
 
+#include <algorithm>
+#include <cstring>
 #include <limits>
+#include <variant>
 
 #include "CrossPointSettings.h"
 #include "components/themes/magnus/MagnusGlobals.h"
@@ -320,11 +323,12 @@ void EpubReaderActivity::loop() {
     // and the per-book lookup history must be non-empty for the history entry.
     const bool hasDictionary = Dictionary::exists();
     const bool hasLookupHistory = hasDictionary && epub && LookupHistory::hasHistory(epub->getCachePath());
+    const bool hasHighlights = bookmarkStore.hasHighlights();
     startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                                renderer, mappedInput, menuTitle, currentPage, totalPages, bookProgressPercent,
                                SETTINGS.orientation, !currentPageFootnotes.empty(), !bookmarkStore.isEmpty(),
                                SETTINGS.autoPageTurnEnabled ? SETTINGS.autoPageTurnSpeed : 0, hasDictionary,
-                               hasLookupHistory),
+                               hasLookupHistory, hasHighlights),
                            [this, prevFontFamily, prevFontSize](const ActivityResult& result) {
                              // Always apply orientation change even if the menu was cancelled
                              const auto& menu = std::get<MenuResult>(result.data);
@@ -551,8 +555,129 @@ void EpubReaderActivity::launchDictionaryWordSelect() {
   startActivityForResult(
       std::make_unique<DictionaryWordSelectActivity>(renderer, mappedInput, std::move(page),
                                                      SETTINGS.getReaderFontId(), marginLeft, marginTop,
-                                                     epub->getCachePath(), SETTINGS.orientation, std::string{}),
+                                                     epub->getCachePath(), SETTINGS.orientation, std::string{},
+                                                     DictionaryWordSelectActivity::Mode::Lookup),
       [this](const ActivityResult& /*result*/) { requestUpdate(); });
+}
+
+void EpubReaderActivity::addHighlightBookmark(const std::string& previewText) {
+  if (!epub || !section || section->pageCount == 0) {
+    requestUpdate();
+    return;
+  }
+  const uint16_t si = static_cast<uint16_t>(currentSpineIndex);
+  const uint16_t pg = static_cast<uint16_t>(section->currentPage);
+  const bool added = bookmarkStore.addHighlight(si, pg, previewText);
+  if (added) {
+    bookmarkStore.save();
+  }
+  GUI.drawPopup(renderer, added ? tr(STR_PAGE_STARRED) : tr(STR_EXPORT_FAILED));
+  renderer.displayBuffer();
+  delay(600);
+  requestUpdate();
+}
+
+void EpubReaderActivity::exportHighlightsToMarkdown() {
+  // Dump every highlight bookmark for the current book to
+  // /highlights/<sanitized basename>.md, in book order (spineIndex, pageNumber).
+  // Highlights render as blockquotes under a per-chapter header. Plain page
+  // bookmarks are skipped — this is a highlights record. (Ported from CrumBLE.)
+  if (!epub) {
+    requestUpdate();
+    return;
+  }
+  const auto& bms = bookmarkStore.getAll();
+
+  // Sort an index list rather than copying the Bookmark records; only include
+  // highlight records.
+  std::vector<uint16_t> order;
+  order.reserve(bms.size());
+  for (uint16_t i = 0; i < static_cast<uint16_t>(bms.size()); ++i) {
+    if (bms[i].isHighlight) order.push_back(i);
+  }
+  if (order.empty()) {
+    requestUpdate();
+    return;
+  }
+  std::sort(order.begin(), order.end(), [&bms](uint16_t a, uint16_t b) {
+    if (bms[a].spineIndex != bms[b].spineIndex) return bms[a].spineIndex < bms[b].spineIndex;
+    return bms[a].pageNumber < bms[b].pageNumber;
+  });
+
+  Storage.mkdir("/highlights");
+
+  std::string outName = epub->getPath();
+  const auto lastSlash = outName.find_last_of('/');
+  if (lastSlash != std::string::npos) outName = outName.substr(lastSlash + 1);
+  const auto lastDot = outName.find_last_of('.');
+  if (lastDot != std::string::npos && lastDot > 0) outName = outName.substr(0, lastDot);
+  for (auto& c : outName) {
+    if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
+      c = '_';
+    }
+  }
+  const std::string outPath = "/highlights/" + outName + ".md";
+
+  FsFile out;
+  if (!Storage.openFileForWrite("ERS", outPath, out)) {
+    LOG_ERR("ERS", "Highlight export: openFileForWrite failed for %s", outPath.c_str());
+    GUI.drawPopup(renderer, tr(STR_EXPORT_FAILED));
+    renderer.displayBuffer();
+    delay(800);
+    requestUpdate();
+    return;
+  }
+
+  const auto writeStr = [&out](const char* s) {
+    if (s && *s) out.write(reinterpret_cast<const uint8_t*>(s), strlen(s));
+  };
+
+  writeStr("# ");
+  writeStr(epub->getTitle().c_str());
+  writeStr("\n\n");
+  if (!epub->getAuthor().empty()) {
+    writeStr("_by ");
+    writeStr(epub->getAuthor().c_str());
+    writeStr("_\n\n");
+  }
+  char countBuf[64];
+  snprintf(countBuf, sizeof(countBuf), "%u highlight%s\n\n", static_cast<unsigned>(order.size()),
+           order.size() == 1 ? "" : "s");
+  writeStr(countBuf);
+
+  for (const uint16_t idx : order) {
+    const BookmarkStore::Bookmark& bm = bms[idx];
+    // Resolve a chapter title from the spine index; progress is the chapter's
+    // start position in the book (per-bookmark page fraction isn't reliably
+    // reconstructable since page counts shift with font/size).
+    std::string chapTitle;
+    const int tocIndex = epub->getTocIndexForSpineIndex(bm.spineIndex);
+    if (tocIndex != -1) {
+      chapTitle = epub->getTocItem(tocIndex).title;
+    }
+    const char* chap = chapTitle.empty() ? "(unknown chapter)" : chapTitle.c_str();
+    int progressPercent = 0;
+    if (epub->getBookSize() > 0) {
+      progressPercent = static_cast<int>(epub->calculateProgress(bm.spineIndex, 0.0f) * 100.0f + 0.5f);
+    }
+    char header[96];
+    snprintf(header, sizeof(header), "## %s \xE2\x80\x94 %d%%\n\n", chap, progressPercent);
+    writeStr(header);
+    if (!bm.preview.empty()) {
+      writeStr("> ");
+      writeStr(bm.preview.c_str());
+      writeStr("\n\n");
+    }
+  }
+  out.close();
+  LOG_INF("ERS", "Highlight export: wrote %u entries to %s", static_cast<unsigned>(order.size()), outPath.c_str());
+
+  // Keep the popup short and fixed-width: the full filename overflows the box
+  // off-screen. The destination folder is in the message; the exact file is logged.
+  GUI.drawPopup(renderer, tr(STR_HIGHLIGHTS_EXPORTED));
+  renderer.displayBuffer();
+  delay(800);
+  requestUpdate();
 }
 
 void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action) {
@@ -722,6 +847,39 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     }
     case EpubReaderMenuActivity::MenuAction::STARRED_PAGES: {
       openStarredPages();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::BOOKMARK_LINE: {
+      // Open the word-selection overlay in highlight-range mode; the selected
+      // text is stored as a highlight bookmark preview and dumped by Export
+      // Highlights.
+      if (epub && section && section->currentPage >= 0 && section->currentPage < section->pageCount) {
+        auto page = section->loadPageFromSectionFile();
+        if (page) {
+          int marginLeft, marginTop;
+          computeReaderOverlayMargins(renderer, marginLeft, marginTop);
+          startActivityForResult(
+              std::make_unique<DictionaryWordSelectActivity>(
+                  renderer, mappedInput, std::move(page), SETTINGS.getReaderFontId(), marginLeft, marginTop,
+                  epub->getCachePath(), SETTINGS.orientation, std::string{},
+                  DictionaryWordSelectActivity::Mode::HighlightRange),
+              [this](const ActivityResult& result) {
+                const auto* hr = std::get_if<HighlightRangeResult>(&result.data);
+                // endWordIndex < 0 is an anchor-only "hold" (cross-page highlight
+                // start); there is no cross-page flow yet, so treat it as a no-op.
+                if (!result.isCancelled && hr && hr->endWordIndex >= 0) {
+                  addHighlightBookmark(hr->previewText);
+                }
+                requestUpdate();
+              });
+          break;
+        }
+      }
+      requestUpdate();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::EXPORT_HIGHLIGHTS: {
+      exportHighlightsToMarkdown();
       break;
     }
     case EpubReaderMenuActivity::MenuAction::GO_HOME: {
