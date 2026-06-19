@@ -1,8 +1,16 @@
 #include "RecentBooksActivity.h"
 
+#include <Epub.h>
+#include <FontDecompressor.h>
+#include <FontManager.h>
+#include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <Xtc.h>
+#ifdef ENABLE_BLE
+#include <BluetoothHIDManager.h>
+#endif
 
 #include <algorithm>
 #include <cstdint>
@@ -18,6 +26,8 @@
 #include "components/themes/magnus/MagnusTheme.h"
 #include "fontIds.h"
 
+extern FontDecompressor fontDecompressor;
+
 namespace {
 // Must match the home screen's CP_COVER_H so we reuse the same cached thumbnails
 constexpr int THUMB_H = 188;
@@ -30,6 +40,53 @@ void RecentBooksActivity::loadRecentBooks() {
   for (const auto& book : books) {
     if (!Storage.exists(book.path.c_str())) continue;
     recentBooks.push_back(book);
+  }
+}
+
+int RecentBooksActivity::magnusCoverHeight() const {
+  // Mirror renderMagnus()'s grid math so the generated thumb fills the card interior.
+  const int sw = renderer.getScreenWidth();
+  const int PAD = magnus::SIDE_PAD;
+  constexpr int gap = 18;
+  const int cardW = (sw - 2 * PAD - gap) / 2;
+  const int cardH = static_cast<int>(cardW * 1.42f);
+  return cardH - 6;
+}
+
+void RecentBooksActivity::ensureCovers(int coverHeight) {
+  if (coverHeight <= 0) return;
+#ifdef ENABLE_BLE
+  // NimBLE + GATT eats ~65-75KB; decoding a cover on top risks OOM. Skip while paired
+  // (the placeholder card is shown instead) — matches HomeActivity's guard.
+  if (!BluetoothHIDManager::getInstance().getConnectedDevices().empty()) return;
+#endif
+  for (RecentBook& book : recentBooks) {
+    if (!book.coverBmpPath.empty() &&
+        Storage.exists(UITheme::getCoverThumbPath(book.coverBmpPath, coverHeight).c_str())) {
+      continue;  // already cached at this height
+    }
+    // Free font caches around the decode: external glyph cache (~34KB) + JPEGDEC
+    // working set (~33KB) overflows residual heap on the C3 with a UI font loaded.
+    const bool wasExtLoaded = FontMgr.isExternalFontEnabled() || FontMgr.isUiFontEnabled();
+    if (wasExtLoaded) {
+      fontDecompressor.clearCache();
+      FontMgr.unloadActiveFonts();
+    }
+    if (FsHelpers::hasEpubExtension(book.path)) {
+      Epub epub(book.path, "/.crosspoint");
+      epub.load(false, true);
+      if (book.coverBmpPath.empty()) book.coverBmpPath = epub.getThumbBmpPath();
+      epub.generateThumbBmp(coverHeight);
+    } else if (FsHelpers::hasXtcExtension(book.path)) {
+      Xtc xtc(book.path, "/.crosspoint");
+      if (xtc.load()) {
+        if (book.coverBmpPath.empty()) book.coverBmpPath = xtc.getThumbBmpPath();
+        xtc.generateThumbBmp(coverHeight);
+      }
+    }
+    if (wasExtLoaded) {
+      FontMgr.reloadActiveFonts();
+    }
   }
 }
 
@@ -47,6 +104,8 @@ void RecentBooksActivity::ensurePageForIndex() {
 void RecentBooksActivity::onEnter() {
   Activity::onEnter();
   loadRecentBooks();
+  // Ensure each cover thumbnail exists at the grid's display height so cards fill.
+  ensureCovers((SETTINGS.uiTheme == CrossPointSettings::MAGNUS) ? magnusCoverHeight() : THUMB_H);
   selectorIndex = 0;
   pageOffset = 0;
   requestUpdate();
@@ -212,13 +271,16 @@ void RecentBooksActivity::renderMagnusCard(int bookIdx, int cardX, int cardY, in
 
   bool coverDrawn = false;
   if (!book.coverBmpPath.empty()) {
-    const std::string thumbPath = UITheme::getCoverThumbPath(book.coverBmpPath, THUMB_H);
+    // Thumb is generated at the card-interior height (ensureCovers) so it fills the
+    // cell rather than floating at a fixed small height with whitespace below.
+    const std::string thumbPath = UITheme::getCoverThumbPath(book.coverBmpPath, cardH - 6);
     FsFile f;
     if (Storage.openFileForRead("RBA_MAG", thumbPath, f)) {
       Bitmap bmp(f);
       if (bmp.parseHeaders() == BmpReaderError::Ok) {
         const int bmpW = std::min((int)bmp.getWidth(), cardW - 6);
         const int bmpH = std::min((int)bmp.getHeight(), cardH - 6);
+        // Centre horizontally; the cover fills the frame interior vertically.
         renderer.drawBitmap(bmp, cardX + (cardW - bmpW) / 2, cardY + 3, bmpW, bmpH);
         coverDrawn = true;
       }

@@ -29,6 +29,13 @@ class RecentBooksActivity final : public Activity {
   int totalPages() const;
   void ensurePageForIndex();
 
+  // Generate cover thumbnails at the given height for any recent book missing one,
+  // mirroring HomeActivity's OOM-safe pattern (skip on BLE, drop font caches around
+  // the JPEG/PNG decode). Lets the grid fill each cell with the cover at cell height.
+  void ensureCovers(int coverHeight);
+  // Magnus grid cover-fill height (card interior), derived from screen width.
+  int magnusCoverHeight() const;
+
   // Render a single cover card at grid position
   void renderCover(int bookIdx, int gridCol, int gridRow, int cardW, int cardH, int startX, int startY, bool selected);
 
