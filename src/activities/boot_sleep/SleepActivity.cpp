@@ -844,36 +844,6 @@ void SleepActivity::renderClockSleepScreen() const {
       "Where is human nature so weak as in a bookshop?",
       "It is what you read when you don't have to that matters.",
     };
-    static const char* const QUOTE_VI[] = {
-      "Người đọc sống ngàn cuộc đời.",
-      "Không phải ai lang thang cũng lạc lối.",
-      "Sách là giấc mơ cầm trên tay.",
-      "Nhiều sách quá, ít thời gian quá.",
-      "Sách là phép màu bỏ túi.",
-      "Không bạn nào trung thành như sách.",
-      "Từ nối từ nối từ là sức mạnh.",
-      "Đọc, đọc, đọc. Đọc mọi thứ.",
-      "Sách hay không có hồi kết.",
-      "Sách là tấm gương tâm hồn.",
-      "Nghĩ trước khi nói. Đọc trước khi nghĩ.",
-      "Sách hay không tiết lộ hết bí mật.",
-      "Hôm nay đọc sách, mai dẫn đầu.",
-      "Văn chương là tin tức còn mãi.",
-      "Tôi luôn hình dung Thiên đường như thư viện.",
-      "Ngủ thì tốt, sách thì tuyệt hơn.",
-      "Nhà không sách như phòng không cửa sổ.",
-      "Không ai đọc cùng một cuốn sách giống nhau.",
-      "Một cuốn sách, một cây bút đổi thay thế giới.",
-      "Sách cho ta du hành qua thời gian.",
-      "Đọc sách hay là một cuộc trò chuyện.",
-      "Đọc sách là tập thể dục cho trí óc.",
-      "Không cần đốt sách để hủy nền văn hóa.",
-      "Kinh điển: sách người ta khen mà không đọc.",
-      "Luôn phải cẩn thận với sách.",
-      "Không có niềm vui nào bằng đọc sách!",
-      "Bản tính con người yếu đuối nhất ở hiệu sách.",
-      "Điều bạn đọc khi không bắt buộc mới quan trọng.",
-    };
     static const char* const QUOTE_AUTHOR[] = {
       "G.R.R. Martin",    "J.R.R. Tolkien",   "Neil Gaiman",
       "Frank Zappa",      "Stephen King",      "Hemingway",
@@ -888,8 +858,7 @@ void SleepActivity::renderClockSleepScreen() const {
     };
     constexpr int QUOTE_COUNT = 28;
     const int qIdx = timeinfo.tm_yday % QUOTE_COUNT;
-    const bool isVi = I18N.getLanguage() == Language::VIETNAMESE;
-    const char* const* QUOTE_TEXT = isVi ? QUOTE_VI : QUOTE_EN;
+    const char* const* QUOTE_TEXT = QUOTE_EN;
 
     const int lhQ = renderer.getLineHeight(SMALL_FONT_ID);
     // Safe width: leave ~108px on the right for the pet (96px sprite + padding)
