@@ -653,7 +653,6 @@ void HomeActivity::renderCrossPet() {
   GUI.drawHeader(renderer, Rect{0, 0, screenW, CP_HEADER_H}, nullptr);
   if (!focusMode) {
     renderHeaderClock();
-    renderPetStatusWidget(CP_HEADER_H);
   }
 
   // Selection highlights only (not full bottom bar redraw)

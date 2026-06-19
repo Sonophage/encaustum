@@ -26,7 +26,7 @@ class HomeActivity final : public Activity {
   void onSelectBook(const std::string& path);
   void onFileBrowserOpen();
   void onRecentBooksOpen();
-  void onVirtualPetOpen();
+  void onReadingStatsOpen();
   void onFileTransferOpen();
   void onSettingsOpen();
   void onToolsOpen();
@@ -62,7 +62,6 @@ class HomeActivity final : public Activity {
   void renderClassicSelectionHighlight(int panelX, int panelY, int panelW, int panelH);
 
   // Shared render helpers
-  void renderPetStatusWidget(int headerH);
   void renderHeaderClock();
   void doSync();
   void performSyncAfterWifi();

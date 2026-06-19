@@ -13,8 +13,8 @@
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
+#include "components/icons/book24.h"
 #include "components/icons/library.h"
-#include "components/icons/pet.h"
 #include "components/icons/recent.h"
 #include "components/icons/settings2.h"
 #include "components/icons/tools.h"
@@ -144,7 +144,7 @@ void HomeActivity::loopClassic() {
     switch (selectorIndex) {
       case 0: if (!recentBooks.empty()) onSelectBook(recentBooks[0].path); break;
       case 1: onToolsOpen(); break;
-      case 2: onVirtualPetOpen(); break;
+      case 2: onReadingStatsOpen(); break;
       case 3: onFileBrowserOpen(); break;
       case 4: onRecentBooksOpen(); break;
       case 5: onFileTransferOpen(); break;
@@ -162,7 +162,6 @@ void HomeActivity::renderClassic() {
     renderer.clearScreen();
     GUI.drawHeader(renderer, Rect{0, 0, pageWidth, CL_HEADER_H}, nullptr);
     renderHeaderClock();
-    renderPetStatusWidget(CL_HEADER_H);
     // Grid lines
     renderer.drawLine(CL_DIVIDER_X, CL_HEADER_H,  CL_DIVIDER_X, CL_DIVIDER_Y,   true);
     renderer.drawLine(0,            CL_DIVIDER_Y,  pageWidth,     CL_DIVIDER_Y,   true);
@@ -178,7 +177,6 @@ void HomeActivity::renderClassic() {
     restoreCoverBuffer();
     GUI.drawHeader(renderer, Rect{0, 0, pageWidth, CL_HEADER_H}, nullptr);
     renderHeaderClock();
-    renderPetStatusWidget(CL_HEADER_H);
   }
 
   // Grid cells (redrawn each frame for selection state)
@@ -187,7 +185,7 @@ void HomeActivity::renderClassic() {
   const int rh2 = CL_GRID_ROW3_Y - CL_GRID_ROW2_Y;
   const int rh3 = CL_GRID_BOTTOM  - CL_GRID_ROW3_Y;
   renderGridCell(0,            CL_DIVIDER_Y,   cw, rh1, 0, ToolsIcon,     tr(STR_TOOLS));
-  renderGridCell(CL_DIVIDER_X, CL_DIVIDER_Y,   cw, rh1, 1, PetIcon,       tr(STR_VIRTUAL_PET));
+  renderGridCell(CL_DIVIDER_X, CL_DIVIDER_Y,   cw, rh1, 1, Book24Icon,    tr(STR_READING_STATS_APP));
   renderGridCell(0,            CL_GRID_ROW2_Y, cw, rh2, 2, LibraryIcon,   tr(STR_BROWSE_FILES));
   renderGridCell(CL_DIVIDER_X, CL_GRID_ROW2_Y, cw, rh2, 3, RecentIcon,    tr(STR_MENU_RECENT_BOOKS));
   renderGridCell(0,            CL_GRID_ROW3_Y, cw, rh3, 4, TransferIcon,  tr(STR_FILE_TRANSFER));

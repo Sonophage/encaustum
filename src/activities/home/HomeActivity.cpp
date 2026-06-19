@@ -28,6 +28,7 @@ extern FontDecompressor fontDecompressor;
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "activities/network/WifiSelectionActivity.h"
+#include "activities/tools/ReadingStatsActivity.h"
 #include "activities/tools/WeatherActivity.h"
 #include "WifiCredentialStore.h"
 #include <WiFi.h>
@@ -248,9 +249,6 @@ void HomeActivity::render(RenderLock&&) {
 
 // ── Shared render helpers ─────────────────────────────────────────────────────
 
-// Pet status widget removed — pet is now a standalone app
-void HomeActivity::renderPetStatusWidget(int /*headerH*/) {}
-
 void HomeActivity::renderHeaderClock() {
   int nextX = 10;
 
@@ -371,7 +369,7 @@ void HomeActivity::doSync() {
 void HomeActivity::onSelectBook(const std::string& path) { activityManager.goToReader(path); }
 void HomeActivity::onFileBrowserOpen() { activityManager.goToFileBrowser(); }
 void HomeActivity::onRecentBooksOpen() { activityManager.goToRecentBooks(); }
-void HomeActivity::onVirtualPetOpen()  { activityManager.goToVirtualPet(); }
+void HomeActivity::onReadingStatsOpen(){ activityManager.pushActivity(std::make_unique<ReadingStatsActivity>(renderer, mappedInput)); }
 void HomeActivity::onFileTransferOpen(){ activityManager.goToFileTransfer(); }
 void HomeActivity::onSettingsOpen()    { activityManager.goToSettings(); }
 void HomeActivity::onToolsOpen()       { activityManager.goToTools(); }

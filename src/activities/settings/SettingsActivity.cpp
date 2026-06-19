@@ -107,11 +107,8 @@ void SettingsActivity::onEnter() {
     {StrId::STR_CLOCK,              &CrossPetSettings::appClock,            "appClock"},
     {StrId::STR_WEATHER,            &CrossPetSettings::appWeather,          "appWeather"},
     {StrId::STR_POMODORO,           &CrossPetSettings::appPomodoro,         "appPomodoro"},
-    {StrId::STR_VIRTUAL_PET,        &CrossPetSettings::appVirtualPet,       "appVirtualPet"},
     {StrId::STR_READING_STATS_APP,  &CrossPetSettings::appReadingStats,     "appReadingStats"},
     {StrId::STR_SLEEP_IMAGE_PICKER, &CrossPetSettings::appSleepImagePicker, "appSleepImagePicker"},
-    {StrId::STR_GAMES,              &CrossPetSettings::appGames,            "appGames"},
-    {StrId::STR_FLASHCARD,          &CrossPetSettings::appFlashcard,        "appFlashcard"},
   };
   for (const auto& t : appToggles) {
     auto field = t.field;

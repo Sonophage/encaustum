@@ -15,7 +15,6 @@
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsActivity.h"
 #include "tools/ToolsActivity.h"
-#include "tools/VirtualPetActivity.h"
 #include "util/FullScreenMessageActivity.h"
 
 void ActivityManager::begin() {
@@ -197,10 +196,6 @@ void ActivityManager::goToReader(std::string path) {
 }
 
 void ActivityManager::goToTools() { replaceActivity(std::make_unique<ToolsActivity>(renderer, mappedInput)); }
-
-void ActivityManager::goToVirtualPet() {
-  replaceActivity(std::make_unique<VirtualPetActivity>(renderer, mappedInput));
-}
 
 void ActivityManager::goToSleep() {
   replaceActivity(std::make_unique<SleepActivity>(renderer, mappedInput));

@@ -5,19 +5,12 @@
 
 #include "ClockActivity.h"
 #include "PomodoroActivity.h"
-#include "TwentyFortyEightActivity.h"
-#include "MinesweeperActivity.h"
-#include "SudokuActivity.h"
-#include "CaroActivity.h"
-#include "ChessActivity.h"
-#include "VirtualPetActivity.h"
 #include "WeatherActivity.h"
 #include "ReadingStatsActivity.h"
 #include "SleepImagePickerActivity.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
 #include "activities/settings/OpdsServerListActivity.h"
 #include "OpdsServerStore.h"
-#include "../flashcard/FlashcardDeckListActivity.h"
 #include "components/UITheme.h"
 #include "CrossPetSettings.h"
 #include "CrossPointSettings.h"
@@ -42,10 +35,6 @@ void ToolsActivity::buildMenu() {
     menuEntries.push_back({StrId::STR_POMODORO, [this] {
       activityManager.pushActivity(std::make_unique<PomodoroActivity>(renderer, mappedInput));
     }});
-  if (PET_SETTINGS.appVirtualPet)
-    menuEntries.push_back({StrId::STR_VIRTUAL_PET, [this] {
-      activityManager.pushActivity(std::make_unique<VirtualPetActivity>(renderer, mappedInput));
-    }});
   if (PET_SETTINGS.appReadingStats)
     menuEntries.push_back({StrId::STR_READING_STATS_APP, [this] {
       activityManager.pushActivity(std::make_unique<ReadingStatsActivity>(renderer, mappedInput));
@@ -53,11 +42,6 @@ void ToolsActivity::buildMenu() {
   if (PET_SETTINGS.appSleepImagePicker)
     menuEntries.push_back({StrId::STR_SLEEP_IMAGE_PICKER, [this] {
       activityManager.pushActivity(std::make_unique<SleepImagePickerActivity>(renderer, mappedInput));
-    }});
-
-  if (PET_SETTINGS.appFlashcard)
-    menuEntries.push_back({StrId::STR_FLASHCARD, [this] {
-      activityManager.pushActivity(std::make_unique<FlashcardDeckListActivity>(renderer, mappedInput));
     }});
 
   // OPDS browser (if any servers configured)
@@ -70,25 +54,6 @@ void ToolsActivity::buildMenu() {
         activityManager.pushActivity(std::make_unique<OpdsServerListActivity>(renderer, mappedInput, true));
       }
     }});
-
-  // Games — single master toggle for all games
-  if (PET_SETTINGS.appGames) {
-    menuEntries.push_back({StrId::STR_CHESS, [this] {
-      activityManager.pushActivity(std::make_unique<ChessActivity>(renderer, mappedInput));
-    }});
-    menuEntries.push_back({StrId::STR_CARO, [this] {
-      activityManager.pushActivity(std::make_unique<CaroActivity>(renderer, mappedInput));
-    }});
-    menuEntries.push_back({StrId::STR_SUDOKU, [this] {
-      activityManager.pushActivity(std::make_unique<SudokuActivity>(renderer, mappedInput));
-    }});
-    menuEntries.push_back({StrId::STR_MINESWEEPER, [this] {
-      activityManager.pushActivity(std::make_unique<MinesweeperActivity>(renderer, mappedInput));
-    }});
-    menuEntries.push_back({StrId::STR_2048, [this] {
-      activityManager.pushActivity(std::make_unique<TwentyFortyEightActivity>(renderer, mappedInput));
-    }});
-  }
 }
 
 void ToolsActivity::onEnter() {
