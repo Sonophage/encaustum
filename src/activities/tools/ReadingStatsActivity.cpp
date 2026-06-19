@@ -257,7 +257,13 @@ void ReadingStatsActivity::renderMagnus() {
   uint32_t weekSecs = 0, peakSecs = 0;
   for (int i = 0; i < 7; i++) {
     uint32_t v = 0;
-    if (today >= 0) {
+    if (i == 6) {
+      // Today's column uses the authoritative todayReadSeconds (same value as
+      // LOGGED TODAY). The daily ring can lag it — e.g. across a v2->v3 upgrade
+      // the ring starts empty while todayReadSeconds carries forward — which
+      // otherwise made THIS WEEK / PEAK read 0 while LOGGED TODAY showed hours.
+      v = READ_STATS.todayReadSeconds;
+    } else if (today >= 0) {
       const int32_t d = today - 6 + i;
       if (d >= 0) v = READ_STATS.dailySeconds[d % 7];
     }
