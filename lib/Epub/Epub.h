@@ -29,6 +29,10 @@ class Epub {
   std::unique_ptr<CssParser> cssParser;
   // CSS files
   std::vector<std::string> cssFiles;
+  // Cached spine cumulative byte-sizes (immutable per loaded book). Populated
+  // lazily on first use to avoid repeated SD reads in getBookSize/calculateProgress,
+  // which run on every page render and page turn.
+  mutable std::vector<size_t> cumulativeSizeCache;
 
   bool findContentOpfFile(std::string* contentOpfFile) const;
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata);

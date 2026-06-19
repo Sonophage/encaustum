@@ -40,6 +40,7 @@ void RecentBooksStore::addBook(const std::string& path, const std::string& title
   }
 
   saveToFile();
+  progressDirty = false;  // full list just persisted
 }
 
 void RecentBooksStore::updateBook(const std::string& path, const std::string& title, const std::string& author,
@@ -52,15 +53,27 @@ void RecentBooksStore::updateBook(const std::string& path, const std::string& ti
     book.author = author;
     book.coverBmpPath = coverBmpPath;
     saveToFile();
+    progressDirty = false;  // full list just persisted
   }
 }
 
 void RecentBooksStore::updateBookProgress(const std::string& path, uint8_t progressPercent) {
   auto it =
       std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
-  if (it != recentBooks.end()) {
+  if (it != recentBooks.end() && it->progressPercent != progressPercent) {
     it->progressPercent = progressPercent;
+    // Defer the disk write — this runs on every page turn. Flushed on reader exit
+    // via saveIfDirty(). The actual resume position lives in progress.bin, which
+    // is still written per turn, so an unclean shutdown only loses home-screen
+    // progress freshness, not the reading position.
+    progressDirty = true;
+  }
+}
+
+void RecentBooksStore::saveIfDirty() {
+  if (progressDirty) {
     saveToFile();
+    progressDirty = false;
   }
 }
 

@@ -345,6 +345,9 @@ void Epub::parseCssFiles() const {
 bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
   LOG_DBG("EBP", "Loading ePub: %s", filepath.c_str());
 
+  // Invalidate the spine cumulative-size cache; (re)load may change the spine.
+  cumulativeSizeCache.clear();
+
   // Heap diagnostics for debugging memory-constrained epub loading
   LOG_INF("EBP", "Heap before load: free=%zu maxBlock=%zu minEver=%zu",
           ESP.getFreeHeap(), ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
@@ -830,7 +833,19 @@ int Epub::getSpineItemsCount() const {
   return bookMetadataCache->getSpineCount();
 }
 
-size_t Epub::getCumulativeSpineItemSize(const int spineIndex) const { return getSpineItem(spineIndex).cumulativeSize; }
+size_t Epub::getCumulativeSpineItemSize(const int spineIndex) const {
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return 0;
+  const int count = getSpineItemsCount();
+  // Cumulative sizes are immutable for a loaded book; read each spine entry from
+  // SD once and cache. getBookSize()/calculateProgress() hit this on every render
+  // and page turn — without the cache that was ~6 SD seeks per call.
+  if (static_cast<int>(cumulativeSizeCache.size()) != count) {
+    cumulativeSizeCache.assign(count, 0);
+    for (int i = 0; i < count; i++) cumulativeSizeCache[i] = getSpineItem(i).cumulativeSize;
+  }
+  if (spineIndex < 0 || spineIndex >= count) return 0;
+  return cumulativeSizeCache[spineIndex];
+}
 
 BookMetadataCache::SpineEntry Epub::getSpineItem(const int spineIndex) const {
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {

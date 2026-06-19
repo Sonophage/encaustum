@@ -172,6 +172,9 @@ void EpubReaderActivity::onExit() {
   const char* bookPath = epub ? epub->getPath().c_str() : nullptr;
   READ_STATS.endSession(title, progress, bookPath);
 
+  // Flush any deferred recent-books progress write (deferred from per-page-turn saves)
+  RECENT_BOOKS.saveIfDirty();
+
   // Save bookmarks before exit
   bookmarkStore.save();
 

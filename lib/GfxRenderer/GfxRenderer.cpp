@@ -1048,7 +1048,12 @@ std::string GfxRenderer::truncatedText(const int fontId, const char* text, const
     return item;
   }
 
-  while (!item.empty() && getTextWidth(fontId, (item + ellipsis).c_str(), style) >= maxWidth) {
+  // Measure the ellipsis once and compare against the (additive) item width —
+  // glyph advances don't kern across the join, so width(item+ellipsis) ==
+  // width(item) + width(ellipsis). Avoids allocating a temp string per removed
+  // character (this is the hottest text util — every truncated row/title/path).
+  const int ellipsisWidth = getTextWidth(fontId, ellipsis, style);
+  while (!item.empty() && getTextWidth(fontId, item.c_str(), style) + ellipsisWidth >= maxWidth) {
     utf8RemoveLastChar(item);
   }
 

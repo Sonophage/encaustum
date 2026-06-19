@@ -38,7 +38,13 @@ class RecentBooksStore {
   void updateBook(const std::string& path, const std::string& title, const std::string& author,
                   const std::string& coverBmpPath);
 
+  // Update a book's progress percent in memory and mark the list dirty. Does NOT
+  // write to disk — this runs on every page turn, so the (full JSON) write is
+  // deferred to saveIfDirty() on reader exit to keep the page-turn path cheap.
   void updateBookProgress(const std::string& path, uint8_t progressPercent);
+
+  // Flush a pending deferred progress update to disk. Call on reader exit.
+  void saveIfDirty();
 
   // Get the list of recent books (most recent first)
   const std::vector<RecentBook>& getBooks() const { return recentBooks; }
@@ -53,6 +59,8 @@ class RecentBooksStore {
 
  private:
   bool loadFromBinaryFile();
+
+  bool progressDirty = false;  // set by updateBookProgress, cleared by saveIfDirty/saveToFile callers
 };
 
 // Helper macro to access recent books store
