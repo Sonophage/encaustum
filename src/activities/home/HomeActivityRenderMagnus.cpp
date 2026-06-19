@@ -35,7 +35,7 @@ constexpr int MH_COVER_W = 108;
 constexpr int MH_COVER_H = 162;
 constexpr int MH_TABBAR_H = 58;
 constexpr int MH_MAX_STACKS = 5;   // Magnus stacks cap (own loop; decoupled from CrossPet)
-constexpr int MH_STACK_ROW = 66;   // two-line rows: serif title + mono fonds line (Garamond is tall)
+constexpr int MH_STACK_ROW = 76;   // two-line rows: serif title + mono fonds line (Garamond is tall)
 constexpr int MH_BOTTOM_ITEMS = 4;
 
 using magnus::bookCode;
@@ -193,8 +193,8 @@ void HomeActivity::renderMagnus() {
     // Fixed in-row offsets — FONT_TITLE's reported line height (~40px) is larger than the
     // glyph cap, so positioning the fonds line by titleLineH pushed it outside the 60px
     // selection fill (invisible as white-on-white when the row was selected).
-    constexpr int MH_TITLE_Y = 8;   // title top within the row
-    constexpr int MH_SUB_Y = 42;    // fonds line top within the row (clears the tall serif title)
+    constexpr int MH_TITLE_Y = 6;   // title top within the row
+    constexpr int MH_SUB_Y = 48;    // fonds line top within the row (clears the tall serif title)
     for (int i = 1; i <= recentCount; i++) {
       const RecentBook& b = recentBooks[i];
       const int rowY = sy + (i - 1) * MH_STACK_ROW;

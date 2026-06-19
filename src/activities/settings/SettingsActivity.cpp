@@ -389,8 +389,12 @@ void SettingsActivity::render(RenderLock&&) {
 
   const auto& metrics = UITheme::getInstance().getMetrics();
 
+  // Magnus shows an institutional eyebrow rather than the firmware version string
+  // (the mockup keeps the build id off the top of the screen).
+  const char* headerEyebrow =
+      (SETTINGS.uiTheme == CrossPointSettings::MAGNUS) ? "THE MAGNUS INSTITUTE" : CROSSPOINT_VERSION;
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_SETTINGS_TITLE),
-                 CROSSPOINT_VERSION);
+                 headerEyebrow);
 
   std::vector<TabInfo> tabs;
   tabs.reserve(categoryCount);

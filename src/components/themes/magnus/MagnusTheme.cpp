@@ -321,27 +321,11 @@ void MagnusTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress,
     if (w > 0) renderer.fillRectDither(ml, by, w, th, Color::DarkGray);
   }
 
+  // The Magnus reader draws the clock + battery in its TOP strip (see
+  // EpubReaderActivity::renderStatusBar), so the footer carries only the
+  // reading position — page · chapter · percent — to match the mockup and
+  // avoid a duplicate clock.
   int leftX = leftEdge;
-
-  // clock + battery (if enabled) at far left
-  if (SETTINGS.statusBarClock) {
-    time_t now;
-    time(&now);
-    struct tm t;
-    localtime_r(&now, &t);
-    char clk[8];
-    if (t.tm_year >= 125)
-      snprintf(clk, sizeof(clk), "%02d:%02d", t.tm_hour, t.tm_min);
-    else
-      snprintf(clk, sizeof(clk), "--:--");
-    renderer.drawText(kChromeFont, leftX, textY, clk, true);
-    leftX += renderer.getTextWidth(kChromeFont, clk) + 8;
-  }
-  if (SETTINGS.statusBarBattery) {
-    const bool showPct = SETTINGS.hideBatteryPercentage == CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_NEVER;
-    drawBatteryLeft(renderer, Rect{leftX, textY, metrics.batteryWidth, metrics.batteryHeight}, showPct);
-    leftX += metrics.batteryWidth + (showPct ? 34 : 8);
-  }
 
   // page count, left: "p. C / P"
   int pageW = 0;

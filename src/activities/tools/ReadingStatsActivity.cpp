@@ -249,74 +249,47 @@ void ReadingStatsActivity::renderMagnus() {
     const int vw = renderer.getTextWidth(magnus::FONT_DISPLAY, vigil);
     renderer.drawText(magnus::FONT_DISPLAY, sw - PAD - vw, y, vigil, true, EpdFontFamily::REGULAR);
   }
-  y += renderer.getLineHeight(magnus::FONT_DISPLAY) + 2;
-  // pages today + all-time pace (pages per minute)
-  {
-    const float ppm = READ_STATS.totalReadSeconds > 0
-        ? (READ_STATS.totalPagesTurned * 60.0f / READ_STATS.totalReadSeconds)
-        : 0.0f;
-    char cap[56];
-    snprintf(cap, sizeof(cap), "%u PAGES TODAY  \xC2\xB7  %.1f PAGES/MIN",
-             (unsigned)READ_STATS.pagesToday, ppm);
-    magnus::tracked(renderer, magnus::FONT_CHROME, PAD, y, cap, 1);
-  }
-  y += 18;
-  magnus::hairline(renderer, PAD, y, sw - 2 * PAD);
-  y += 16;
+  y += renderer.getLineHeight(magnus::FONT_DISPLAY) + 16;
 
-  // THIS WEEK — seven daily reading-time bars (today on the right, drawn solid)
-  magnus::eyebrow(renderer, PAD, y, "THIS WEEK");
-  y += 18;
-  {
-    constexpr int N = 7;
-    const int chartH = 30;
-    const int gap = 6;
-    const int avail = sw - 2 * PAD;
-    const int barW = (avail - (N - 1) * gap) / N;
-    const int32_t today = ReadingStats::currentDayNumber();
-    uint32_t vals[N] = {};
-    uint32_t maxV = 1;
-    for (int i = 0; i < N; i++) {
-      uint32_t v = 0;
-      if (today >= 0) {
-        const int32_t d = today - (N - 1) + i;
-        if (d >= 0) v = READ_STATS.dailySeconds[d % 7];
-      }
-      vals[i] = v;
-      if (v > maxV) maxV = v;
+  // This week's reading seconds (sum of the daily ring) + peak day, for the cards + chart.
+  const int32_t today = ReadingStats::currentDayNumber();
+  uint32_t weekVals[7] = {};
+  uint32_t weekSecs = 0, peakSecs = 0;
+  for (int i = 0; i < 7; i++) {
+    uint32_t v = 0;
+    if (today >= 0) {
+      const int32_t d = today - 6 + i;
+      if (d >= 0) v = READ_STATS.dailySeconds[d % 7];
     }
-    const int baseY = y + chartH;
-    for (int i = 0; i < N; i++) {
-      const int bx = PAD + i * (barW + gap);
-      int bh = static_cast<int>(static_cast<uint64_t>(vals[i]) * chartH / maxV);
-      if (vals[i] > 0 && bh < 2) bh = 2;
-      magnus::hairline(renderer, bx, baseY, barW);  // baseline tick
-      if (bh > 0) renderer.fillRect(bx, baseY - bh, barW, bh);
-      if (i == N - 1) renderer.fillRect(bx, baseY + 3, barW, 2);  // underline today
-    }
-    y = baseY + 16;
+    weekVals[i] = v;
+    weekSecs += v;
+    if (v > peakSecs) peakSecs = v;
   }
 
-  // three framed cards: ALL TIME / SESSIONS / FINISHED
+  // three framed cards: THIS WEEK · PAGES TODAY · PER MIN
   {
     const int gap = 12;
     const int cardW = (sw - 2 * PAD - 2 * gap) / 3;
     const int cardH = 68;
-    // Compact duration ("3h 12m") so the value fits a card; the long form overflowed.
     char a[16];
     {
-      const uint32_t mins = READ_STATS.totalReadSeconds / 60;
+      const uint32_t mins = weekSecs / 60;
       if (mins >= 60)
         snprintf(a, sizeof(a), "%uh %um", (unsigned)(mins / 60), (unsigned)(mins % 60));
       else
         snprintf(a, sizeof(a), "%um", (unsigned)mins);
     }
     char b[16];
-    snprintf(b, sizeof(b), "%u", (unsigned)READ_STATS.totalSessions);
+    snprintf(b, sizeof(b), "%u", (unsigned)READ_STATS.pagesToday);
     char c[16];
-    snprintf(c, sizeof(c), "%u", (unsigned)READ_STATS.booksFinished);
+    {
+      const float ppm = READ_STATS.totalReadSeconds > 0
+          ? (READ_STATS.totalPagesTurned * 60.0f / READ_STATS.totalReadSeconds)
+          : 0.0f;
+      snprintf(c, sizeof(c), "%.1f", ppm);
+    }
     const char* vals[3] = {a, b, c};
-    const char* labs[3] = {"ALL TIME", "SESSIONS", "FINISHED"};
+    const char* labs[3] = {"THIS WEEK", "PAGES TODAY", "PAGES / MIN"};
     for (int i = 0; i < 3; i++) {
       const int cx = PAD + i * (cardW + gap);
       magnus::frame(renderer, Rect{cx, y, cardW, cardH}, 1);
@@ -325,19 +298,59 @@ void ReadingStatsActivity::renderMagnus() {
       renderer.drawText(magnus::FONT_TITLE, cx + (cardW - vwi) / 2, y + 8, vt.c_str(), true, EpdFontFamily::REGULAR);
       magnus::centerTracked(renderer, magnus::FONT_CHROME, cx + cardW / 2, y + cardH - 16, labs[i], 1);
     }
-    y += cardH + 18;
+    y += cardH + 20;
   }
 
-  // RECENTLY READ
-  magnus::eyebrow(renderer, PAD, y, "THE STACKS \xC2\xB7 RECENTLY READ");
-  y += 22;
+  // TIME KEPT · THIS WEEK — seven daily bars labelled by weekday; today drawn solid,
+  // prior days hatched. Peak day shown at the right of the section eyebrow.
+  magnus::eyebrow(renderer, PAD, y, "TIME KEPT \xC2\xB7 THIS WEEK");
+  {
+    char peak[24];
+    const uint32_t pm = peakSecs / 60;
+    if (pm >= 60)
+      snprintf(peak, sizeof(peak), "PEAK %uh %um", (unsigned)(pm / 60), (unsigned)(pm % 60));
+    else
+      snprintf(peak, sizeof(peak), "PEAK %um", (unsigned)pm);
+    const int pw = magnus::trackedWidth(renderer, magnus::FONT_EYEBROW, peak, magnus::TRACK_EYEBROW);
+    magnus::tracked(renderer, magnus::FONT_EYEBROW, sw - PAD - pw, y, peak, magnus::TRACK_EYEBROW);
+  }
+  y += 24;
+  {
+    constexpr int N = 7;
+    const char* DOW = "MTWTFSS";  // weekday letters, Monday-first
+    const int chartH = 70;
+    const int gap = 8;
+    const int avail = sw - 2 * PAD;
+    const int barW = (avail - (N - 1) * gap) / N;
+    uint32_t maxV = 1;
+    for (int i = 0; i < N; i++)
+      if (weekVals[i] > maxV) maxV = weekVals[i];
+    const int baseY = y + chartH;
+    for (int i = 0; i < N; i++) {
+      const int bx = PAD + i * (barW + gap);
+      int bh = static_cast<int>(static_cast<uint64_t>(weekVals[i]) * chartH / maxV);
+      if (weekVals[i] > 0 && bh < 3) bh = 3;
+      if (bh > 0) {
+        const Rect br{bx, baseY - bh, barW, bh};
+        if (i == N - 1)
+          renderer.fillRect(br.x, br.y, br.width, br.height, true);  // today solid
+        else
+          magnus::hatch(renderer, br);  // prior days hatched
+      }
+      // weekday label beneath the baseline
+      char dl[2] = {' ', '\0'};
+      if (today >= 0) {
+        const int32_t d = today - (N - 1) + i;
+        if (d >= 0) dl[0] = DOW[((static_cast<int>(d % 7)) + 3) % 7];
+      }
+      const int lw = renderer.getTextWidth(magnus::FONT_CHROME, dl);
+      renderer.drawText(magnus::FONT_CHROME, bx + (barW - lw) / 2, baseY + 6, dl, true);
+    }
+    magnus::hairline(renderer, PAD, baseY, avail);  // baseline
+    y = baseY + 26;
+  }
 
-  // footer geometry — sits ABOVE the button-hint bar with a clear gap (the hint bar also
-  // draws a 2px rule above itself, so leave headroom or labels clip into it).
-  const int footerH = 50;
-  const int footerTop = sh - MagnusMetrics::values.buttonHintsHeight - footerH - 12;
-  const int listMaxY = footerTop - 12;
-
+  // catalogued / in-progress counts for the footer
   const auto& allBooks = BOOK_STATS.getBooks();
   int catalogued = (int)allBooks.size();
   int inProgress = 0;
@@ -346,44 +359,9 @@ void ReadingStatsActivity::renderMagnus() {
     if (e.progress > 0 && e.progress < 100) inProgress++;
   }
 
-  if (!allBooks.empty()) {
-    struct BookRef { const char* title; uint32_t secs; uint8_t progress; uint32_t ts; };
-    BookRef recent[5];
-    int count = 0;
-    for (const auto& kv : allBooks) {
-      const auto& e = kv.second;
-      if (count < 5) {
-        recent[count++] = {e.title, e.totalSeconds, e.progress, e.lastReadTimestamp};
-      } else {
-        int minIdx = 0;
-        for (int j = 1; j < 5; j++)
-          if (recent[j].ts < recent[minIdx].ts) minIdx = j;
-        if (e.lastReadTimestamp > recent[minIdx].ts)
-          recent[minIdx] = {e.title, e.totalSeconds, e.progress, e.lastReadTimestamp};
-      }
-    }
-    for (int i = 1; i < count; i++) {
-      BookRef tmp = recent[i];
-      int j = i - 1;
-      while (j >= 0 && recent[j].ts < tmp.ts) { recent[j + 1] = recent[j]; j--; }
-      recent[j + 1] = tmp;
-    }
-    const int rowH = 40;
-    for (int i = 0; i < count && y + rowH < listMaxY; i++) {
-      char timeBuf[24];
-      StringUtils::formatReadingDuration(timeBuf, sizeof(timeBuf), recent[i].secs);
-      const int timeW = renderer.getTextWidth(magnus::FONT_CHROME, timeBuf);
-      const int titleMaxW = sw - 2 * PAD - timeW - 10;
-      auto titleStr = renderer.truncatedText(magnus::FONT_BODY, recent[i].title, titleMaxW, EpdFontFamily::REGULAR);
-      renderer.drawText(magnus::FONT_BODY, PAD, y, titleStr.c_str(), true, EpdFontFamily::REGULAR);
-      renderer.drawText(magnus::FONT_CHROME, sw - PAD - timeW, y + 2, timeBuf, true);
-      const int by = y + renderer.getLineHeight(magnus::FONT_BODY) + 4;
-      magnus::ditherBar(renderer, Rect{PAD, by, sw - 2 * PAD, 8}, recent[i].progress);
-      y += rowH;
-    }
-  } else {
-    renderer.drawText(magnus::FONT_BODY, PAD, y, "No statements on record.", true);
-  }
+  // footer geometry — sits ABOVE the button-hint bar with a clear gap.
+  const int footerH = 50;
+  const int footerTop = sh - MagnusMetrics::values.buttonHintsHeight - footerH - 12;
 
   // footer: catalogued · the Eye · in progress
   magnus::rule(renderer, 0, footerTop, sw, 1);
